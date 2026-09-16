@@ -19,7 +19,7 @@ let timerInterval, timeLeft = 180;
 let currentPlayerRef = null;
 
 /* ==========================================
-   QUẢN LÝ LƯU TRỮ TRẠNG THÁI (SESSION & LOCAL STORAGE)
+   QUẢN LÝ LƯU TRỮ TRẠNG THÁI (CHỐNG F5)
 ========================================== */
 function saveSession(room, name) {
     localStorage.setItem('noel_room', room);
@@ -32,6 +32,7 @@ function clearSession() {
     localStorage.removeItem('noel_map');
     localStorage.removeItem('noel_pos');
     localStorage.removeItem('noel_visited');
+    localStorage.removeItem('noel_endtime_v2'); // Đã đổi tên biến để chống kẹt cache cũ
 }
 
 function saveMapLocal() {
@@ -71,6 +72,13 @@ window.onload = function() {
                     document.getElementById("ui-lives").textContent = lives;
                     document.getElementById("ui-score").textContent = score;
 
+                    // Khôi phục Bảng xếp hạng Live
+                    db.ref('Rooms/' + myRoomPIN + '/Players').on('value', snap => {
+                        if (snap.exists()) {
+                            renderLeaderboard(snap.val(), 'live-leaderboard');
+                        }
+                    });
+
                     // Khôi phục bản đồ và vị trí hiện tại
                     let savedMap = localStorage.getItem('noel_map');
                     if (savedMap) {
@@ -78,12 +86,12 @@ window.onload = function() {
                         currentPos = JSON.parse(localStorage.getItem('noel_pos'));
                         visitedCells = new Set(JSON.parse(localStorage.getItem('noel_visited') || "[]"));
                         renderBoard();
-                        startTimer();
+                        startTimer(false); // Báo false để hệ thống trừ tiếp thời gian đang chạy
                     } else {
-                        loadLevel(); // Nếu lỗi file save thì nạp lại màn mới
+                        loadLevel();
                     }
 
-                    // Đã vào game thì hủy ngắt kết nối để không mất điểm oan
+                    // Đã vào game thì hủy ngắt kết nối
                     currentPlayerRef.onDisconnect().cancel();
                     
                 } else {
@@ -94,13 +102,13 @@ window.onload = function() {
                     document.getElementById('role-selection').style.display = 'none';
                     if (myData.state === 'ready') {
                         document.getElementById('student-waiting-view').style.display = 'block';
-                        setupWaitingRoomListeners(); // Bật lại listener phòng chờ
+                        setupWaitingRoomListeners(); 
                     } else {
                         document.getElementById('rules-view').style.display = 'block';
                     }
                 }
             } else {
-                clearSession(); // Phòng không tồn tại hoặc bị kick thì xóa rác
+                clearSession(); 
             }
         });
     }
@@ -217,7 +225,7 @@ function cancelRoom() {
 }
 
 /* ==========================================
-   HỌC SINH 
+   HỌC SINH - ĐĂNG NHẬP GOOGLE
 ========================================== */
 function showStudentLogin() {
     document.getElementById('role-selection').style.display = 'none';
@@ -233,40 +241,52 @@ function backToHome() {
     document.getElementById('role-selection').style.display = 'block';
 }
 
-function verifyRoom() {
+function loginWithGoogle() {
     myRoomPIN = document.getElementById('pin-input').value.trim();
-    myName = document.getElementById('name-input').value.trim();
 
-    if (!myRoomPIN || !myName) { 
-        showPopup("⚠️ Lỗi", "Vui lòng nhập đủ Mã phòng và Tên của bạn!"); 
+    if (!myRoomPIN) { 
+        showPopup("⚠️ Lỗi", "Vui lòng nhập Mã phòng trước khi đăng nhập!"); 
         return; 
     }
 
     db.ref('Rooms/' + myRoomPIN).once('value', snapshot => {
-        if (snapshot.exists()) {
-            let roomData = snapshot.val();
-            if (roomData.status !== 'waiting') {
-                showPopup("⛔ Phòng Đã Khóa", "Trò chơi đã bắt đầu, bạn không thể tham gia lúc này.");
-                return;
-            }
-            if (snapshot.hasChild('Players/' + myName)) {
-                showPopup("⚠️ Trùng Tên", "Tên này đã có bạn khác trong lớp sử dụng.\nVui lòng thêm số thứ tự hoặc tên đệm!");
-            } else {
-                saveSession(myRoomPIN, myName); // Lưu bộ nhớ tạm
-                
-                currentPlayerRef = db.ref('Rooms/' + myRoomPIN + '/Players/' + myName);
-                currentPlayerRef.set({
-                    state: 'reading', score: 0, lives: 3, level: 1, isFinished: false
-                }).then(() => {
-                    currentPlayerRef.onDisconnect().remove();
-                    document.getElementById('student-view').style.display = 'none';
-                    document.getElementById('rules-view').style.display = 'block';
-                    listenForKick();
-                });
-            }
-        } else { 
-            showPopup("❌ Sai Mã", "Mã phòng không tồn tại. Vui lòng hỏi lại Giáo viên!"); 
+        if (!snapshot.exists()) {
+            showPopup("❌ Sai Mã", "Mã phòng không tồn tại. Vui lòng hỏi lại Giáo viên!");
+            return;
         }
+
+        let roomData = snapshot.val();
+        if (roomData.status !== 'waiting') {
+            showPopup("⛔ Phòng Đã Khóa", "Trò chơi đã bắt đầu, bạn không thể tham gia lúc này.");
+            return;
+        }
+
+        const provider = new firebase.auth.GoogleAuthProvider();
+        firebase.auth().signInWithPopup(provider).then((result) => {
+            const user = result.user;
+            myName = user.displayName || user.email.split('@')[0];
+
+            db.ref('Rooms/' + myRoomPIN + '/Players').once('value', playerSnap => {
+                if (playerSnap.hasChild(myName)) {
+                    showPopup("⚠️ Trùng Tên", `Tên tài khoản Google (${myName}) đã có bạn khác sử dụng trong phòng này!`);
+                    firebase.auth().signOut();
+                } else {
+                    saveSession(myRoomPIN, myName); 
+                    
+                    currentPlayerRef = db.ref('Rooms/' + myRoomPIN + '/Players/' + myName);
+                    currentPlayerRef.set({
+                        state: 'reading', score: 0, lives: 3, level: 1, isFinished: false
+                    }).then(() => {
+                        currentPlayerRef.onDisconnect().remove();
+                        document.getElementById('student-view').style.display = 'none';
+                        document.getElementById('rules-view').style.display = 'block';
+                        listenForKick();
+                    });
+                }
+            });
+        }).catch((error) => {
+            showPopup("❌ Lỗi Đăng Nhập", "Không thể đăng nhập Google: " + error.message);
+        });
     });
 }
 
@@ -370,13 +390,29 @@ function renderLeaderboard(playersData, containerId) {
 /* ==========================================
    ĐẾM GIỜ & THUẬT TOÁN BÀN CỜ
 ========================================== */
-function startTimer() {
+function startTimer(isNewLevel = false) {
     clearInterval(timerInterval); 
-    timeLeft = 180;
+    
+    if (isNewLevel === true) {
+        timeLeft = 180; // Bắt đầu màn mới thì reset 3 phút
+        localStorage.setItem('noel_endtime_v2', (Date.now() + 180000).toString()); 
+    } else {
+        // Khôi phục thời gian khi F5
+        let savedEndTime = localStorage.getItem('noel_endtime_v2');
+        if (savedEndTime && !isNaN(savedEndTime)) {
+            let diff = parseInt(savedEndTime, 10) - Date.now();
+            timeLeft = Math.floor(diff / 1000);
+            if (timeLeft < 0) timeLeft = 0; 
+        } else {
+            timeLeft = 180; // Tránh lỗi dữ liệu
+        }
+    }
+    
     updateTimerUI();
 
     timerInterval = setInterval(() => {
         timeLeft--;
+        if (timeLeft < 0) timeLeft = 0; // Tránh giờ bị âm
         updateTimerUI();
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
@@ -461,9 +497,9 @@ function loadLevel() {
     document.getElementById("ui-score").textContent = score;
     mapData = generateMap();
     currentPos = null; visitedCells.clear();
-    saveMapLocal(); // Lưu ma trận mới
+    saveMapLocal(); 
     renderBoard();
-    startTimer();
+    startTimer(true); // Gửi cờ true để khởi tạo lại đồng hồ 3 phút khi qua màn mới
 }
 
 function renderBoard() {
@@ -537,7 +573,7 @@ function handleMove(r, c) {
         if (!visitedCells.has(cellKey)) { score += 100; visitedCells.add(cellKey); }
         document.getElementById("ui-score").textContent = score;
         syncDataToFirebase(); 
-        saveMapLocal(); // Cập nhật vị trí hiện tại
+        saveMapLocal(); // Cập nhật vị trí sau khi di chuyển
         renderBoard(); 
     } else {
         cellEl.classList.add("bomb");
@@ -561,7 +597,7 @@ function handleMove(r, c) {
 
 function finishGame() {
     clearInterval(timerInterval);
-    clearSession(); // Kết thúc game thì xóa dữ liệu bộ nhớ tạm
+    clearSession(); 
     document.getElementById('game-view').style.display = 'none';
     document.getElementById('end-view').style.display = 'block';
     document.getElementById('end-student-name').textContent = myName;
