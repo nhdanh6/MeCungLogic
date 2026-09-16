@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mê Cung Lôgic - Đêm Giáng Sinh</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Nhúng thư viện Firebase v8 (App, Database & Auth) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+</head>
+<body>
+
+    <!-- MÀN HÌNH 1: CHỌN VAI TRÒ -->
+    <div class="container animate-pop" id="role-selection">
+        <h2 class="title-main">🎄 MÊ CUNG LÔGIC 🎅</h2>
+        <p class="subtitle">Đấu trường Lôgic Thời gian thực</p>
+        <button class="btn btn-host" onclick="initHost()">👨‍🏫 Giáo viên (Tạo phòng)</button>
+        <button class="btn btn-student" onclick="showStudentLogin()">🧑‍🎓 Học sinh (Tham gia)</button>
+    </div>
+
+    <!-- MÀN HÌNH 1.5: GIÁO VIÊN - ĐĂNG NHẬP -->
+    <div class="container animate-pop" id="host-login-view" style="display: none;">
+        <h2 class="title-main">🔒 XÁC THỰC GIÁO VIÊN</h2>
+        <p class="subtitle">Vui lòng nhập mật khẩu quản trị để tạo phòng</p>
+        <input type="password" id="host-password" placeholder="Nhập mật khẩu...">
+        <button class="btn btn-host" onclick="verifyHost()">XÁC NHẬN</button>
+        <button class="btn" style="background: #95a5a6;" onclick="backToHome()">QUAY LẠI</button>
+    </div>
+
+    <!-- MÀN HÌNH 2: GIÁO VIÊN - PHÒNG CHỜ & BẢNG XẾP HẠNG -->
+    <div class="container animate-pop" id="host-view" style="display: none;">
+        <h1 class="host-title">MÃ PHÒNG: <span id="room-pin" class="pulse-text">----</span></h1>
+        
+        <div id="host-waiting-area">
+            <h3>Sĩ số: <span id="player-count" style="color: #c0392b;">0</span> 
+                (Sẵn sàng: <span id="ready-count" style="color: #27ae60;">0</span>)</h3>
+            <div id="waiting-list" class="waiting-list"></div>
+            <button class="btn btn-start-game" onclick="startHostGame()">🛷 BẮT ĐẦU TRÒ CHƠI</button>
+        </div>
+
+        <div id="host-playing-area" style="display: none;">
+            <h2 class="title-main">🏆 TRẠNG THÁI LỚP HỌC</h2>
+            <div id="host-leaderboard" class="leaderboard-container"></div>
+        </div>
+    </div>
+
+    <!-- MÀN HÌNH 3: HỌC SINH - ĐĂNG NHẬP BẰNG GOOGLE -->
+    <div class="container animate-pop" id="student-view" style="display: none;">
+        <h2 class="title-main">🎅 GHI DANH LỚP HỌC</h2>
+        <input type="text" id="pin-input" placeholder="Nhập Mã Phòng (4 số)">
+        <button class="btn btn-google" onclick="loginWithGoogle()">🔑 ĐĂNG NHẬP BẰNG GOOGLE</button>
+        <button class="btn" style="background: #95a5a6;" onclick="backToHome()">QUAY LẠI</button>
+    </div>
+
+    <!-- MÀN HÌNH 4: HỌC SINH - LUẬT CHƠI & SẴN SÀNG -->
+    <div class="container animate-pop" id="rules-view" style="display: none;">
+        <h2 class="title-warning">📜 LUẬT CHƠI ĐÊM NOEL</h2>
+        <div class="rules-box">
+            <ul>
+                <li>🎁 <b>Nhiệm vụ:</b> Tìm đường đến Hộp Quà Giáng Sinh. Tổng cộng 5 màn.</li>
+                <li>⏱️ <b>Thời gian:</b> Tối đa 3 phút/màn. Hết giờ tự động qua màn.</li>
+                <li>👣 <b>Cách đi:</b> Đi từng bước liền kề (Lên, Xuống, Trái, Phải).</li>
+                <li>🧮 <b>Tính toán:</b> Cột <b>[Phép toán]</b> Hàng. Bằng <b>1</b> (Đi tiếp: +100đ). Bằng <b>0</b> (Đạp bom: -200đ, mất 1 mạng, giữ nguyên bản đồ).</li>
+                <li>💔 <b>Hết mạng:</b> Bị trừ 1000đ, bỏ qua màn chơi hiện tại và sang màn tiếp theo.</li>
+            </ul>
+        </div>
+        <button class="btn btn-success" onclick="joinWaitingRoom()">ĐÃ HIỂU & SẴN SÀNG ⛄</button>
+    </div>
+
+    <!-- MÀN HÌNH 5: HỌC SINH - PHÒNG CHỜ -->
+    <div class="container animate-pop" id="student-waiting-view" style="display: none;">
+        <h2 class="title-main">ĐANG Ở PHÒNG CHỜ...</h2>
+        <div class="loader" style="margin-bottom: 20px;"></div>
+        <p class="pulse-text" style="font-size: 18px;">Hãy chờ Giáo viên bấm Bắt đầu nhé!</p>
+        <hr style="border: 1px dashed #bdc3c7; margin: 20px 0;">
+        <p style="font-weight: bold; color: #2980b9;">Danh sách lớp đang tham gia:</p>
+        <div id="student-waiting-list" class="waiting-list"></div>
+    </div>
+
+    <!-- MÀN HÌNH 6: GIAO DIỆN CHƠI GAME (CHIA 2 CỘT) -->
+    <div class="game-layout" id="game-view" style="display: none;">
+        <!-- Cột Trái: Bàn cờ -->
+        <div class="game-board-area">
+            <h3 id="ui-student-name" style="color: #27ae60; margin-top:0;"></h3>
+            <div class="game-stats">
+                <span class="stat-box">🚩 Màn: <span id="ui-level" class="stat-highlight">1</span>/5</span>
+                <span class="stat-box">❤️ Mạng: <span id="ui-lives" class="stat-danger">3</span></span>
+                <span class="stat-box">⭐ Điểm: <span id="ui-score" class="stat-warning">0</span></span>
+                <span class="stat-box" style="border: 2px solid #e74c3c;">⏱️ <span id="ui-timer" style="color: #c0392b; font-weight: bold;">03:00</span></span>
+            </div>
+            <div id="game-container"></div>
+        </div>
+
+        <!-- Cột Phải: Bảng xếp hạng Live -->
+        <div class="live-leaderboard-area">
+            <h3 class="live-title">🔥 BẢNG ĐUA ĐIỂM</h3>
+            <div id="live-leaderboard" class="leaderboard-container"></div>
+        </div>
+    </div>
+
+    <!-- MÀN HÌNH 7: TỔNG KẾT -->
+    <div class="container animate-pop" id="end-view" style="display: none;">
+        <h2 class="success-title">🎉 CHÚC MỪNG GIÁNG SINH!</h2>
+        <p>Điểm tổng kết của bạn: <b id="my-final-score" class="final-score"></b></p>
+        <p>Hãy nhìn lên màn hình của Giáo viên để xem thứ hạng chung cuộc nhé!</p>
+    </div>
+
+    <!-- HỘP THOẠI THÔNG BÁO TÙY CHỈNH (Đã đẩy z-index cực cao để không bị khuất) -->
+    <div id="custom-popup" class="popup-overlay">
+        <div class="popup-box">
+            <h3 id="popup-title">Thông báo</h3>
+            <p id="popup-message"></p>
+            <button class="btn btn-student" id="popup-btn" style="width: 150px; margin: 15px auto 0 auto;">ĐÓNG</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
