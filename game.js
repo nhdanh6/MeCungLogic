@@ -32,7 +32,7 @@ function clearSession() {
     localStorage.removeItem('noel_map');
     localStorage.removeItem('noel_pos');
     localStorage.removeItem('noel_visited');
-    localStorage.removeItem('noel_endtime_v2'); // Đã đổi tên biến để chống kẹt cache cũ
+    localStorage.removeItem('noel_endtime_v2'); 
 }
 
 function saveMapLocal() {
@@ -41,7 +41,11 @@ function saveMapLocal() {
     localStorage.setItem('noel_visited', JSON.stringify(Array.from(visitedCells)));
 }
 
-// Tự động khôi phục nếu học sinh tải lại trang (F5)
+// Hàm làm sạch tên (Bỏ các ký tự cấm của Firebase)
+function cleanName(name) {
+    return name.replace(/[.#$[\]]/g, '');
+}
+
 window.onload = function() {
     let savedRoom = localStorage.getItem('noel_room');
     let savedName = localStorage.getItem('noel_name');
@@ -58,7 +62,6 @@ window.onload = function() {
                 currentPlayerRef = db.ref('Rooms/' + myRoomPIN + '/Players/' + myName);
 
                 if (roomData.status === 'playing') {
-                    // ĐANG CHƠI THÌ KHÔI PHỤC GAME
                     isGameStarted = true;
                     score = myData.score;
                     lives = myData.lives;
@@ -72,30 +75,25 @@ window.onload = function() {
                     document.getElementById("ui-lives").textContent = lives;
                     document.getElementById("ui-score").textContent = score;
 
-                    // Khôi phục Bảng xếp hạng Live
                     db.ref('Rooms/' + myRoomPIN + '/Players').on('value', snap => {
                         if (snap.exists()) {
                             renderLeaderboard(snap.val(), 'live-leaderboard');
                         }
                     });
 
-                    // Khôi phục bản đồ và vị trí hiện tại
                     let savedMap = localStorage.getItem('noel_map');
                     if (savedMap) {
                         mapData = JSON.parse(savedMap);
                         currentPos = JSON.parse(localStorage.getItem('noel_pos'));
                         visitedCells = new Set(JSON.parse(localStorage.getItem('noel_visited') || "[]"));
                         renderBoard();
-                        startTimer(false); // Báo false để hệ thống trừ tiếp thời gian đang chạy
+                        startTimer(false); 
                     } else {
                         loadLevel();
                     }
-
-                    // Đã vào game thì hủy ngắt kết nối
                     currentPlayerRef.onDisconnect().cancel();
                     
                 } else {
-                    // NẾU ĐANG Ở PHÒNG CHỜ
                     currentPlayerRef.onDisconnect().remove();
                     listenForKick();
                     
@@ -114,7 +112,6 @@ window.onload = function() {
     }
 };
 
-/* POPUP CUSTOM */
 function showPopup(title, message, callback) {
     const modal = document.getElementById('custom-popup');
     document.getElementById('popup-title').innerHTML = title;
@@ -208,7 +205,7 @@ function startHostGame() {
         return; 
     }
     if (readyPlayersCount < currentPlayersCount) {
-        showPopup("⚠️ Lớp chưa sẵn sàng!", `Còn ${currentPlayersCount - readyPlayersCount} bạn đang đọc luật chơi. Bạn có thể đợi hoặc bấm nút ✖ để xóa tài khoản ảo!`);
+        showPopup("⚠️ Lớp chưa sẵn sàng!", `Còn ${currentPlayersCount - readyPlayersCount} bạn đang đọc luật chơi.`);
         return;
     }
     db.ref('Rooms/' + myRoomPIN).update({ status: 'playing' });
@@ -225,7 +222,7 @@ function cancelRoom() {
 }
 
 /* ==========================================
-   HỌC SINH - ĐĂNG NHẬP GOOGLE
+   HỌC SINH - ĐĂNG NHẬP & VÀO PHÒNG
 ========================================== */
 function showStudentLogin() {
     document.getElementById('role-selection').style.display = 'none';
@@ -241,64 +238,90 @@ function backToHome() {
     document.getElementById('role-selection').style.display = 'block';
 }
 
+// Hỗ trợ nếu bạn dùng nút Đăng Nhập Tên Trực Tiếp
+function verifyRoom() {
+    myRoomPIN = document.getElementById('pin-input') ? document.getElementById('pin-input').value.trim() : "";
+    let nameInput = document.getElementById('name-input');
+    
+    if (nameInput) {
+        myName = cleanName(nameInput.value.trim());
+    }
+
+    if (!myRoomPIN || !myName) { 
+        showPopup("⚠️ Lỗi", "Vui lòng nhập đủ Mã phòng và Tên của bạn!"); 
+        return; 
+    }
+    joinRoomLogic();
+}
+
+// Hỗ trợ nếu bạn dùng nút Đăng Nhập Bằng Google
 function loginWithGoogle() {
-    myRoomPIN = document.getElementById('pin-input').value.trim();
+    myRoomPIN = document.getElementById('pin-input') ? document.getElementById('pin-input').value.trim() : "";
 
     if (!myRoomPIN) { 
         showPopup("⚠️ Lỗi", "Vui lòng nhập Mã phòng trước khi đăng nhập!"); 
         return; 
     }
 
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithPopup(provider).then((result) => {
+        const user = result.user;
+        // Tự động lọc các ký tự cấm của Firebase ra khỏi tên Google
+        myName = cleanName(user.displayName || user.email.split('@')[0]);
+        joinRoomLogic();
+    }).catch((error) => {
+        showPopup("❌ Lỗi Đăng Nhập", "Không thể đăng nhập Google: " + error.message);
+    });
+}
+
+// LOGIC CHUYỂN GIAO DIỆN SIÊU TỐC (Sửa lỗi kẹt ở trang đăng nhập)
+function joinRoomLogic() {
     db.ref('Rooms/' + myRoomPIN).once('value', snapshot => {
-        if (!snapshot.exists()) {
-            showPopup("❌ Sai Mã", "Mã phòng không tồn tại. Vui lòng hỏi lại Giáo viên!");
-            return;
+        if (snapshot.exists()) {
+            let roomData = snapshot.val();
+            if (roomData.status !== 'waiting') {
+                showPopup("⛔ Phòng Đã Khóa", "Trò chơi đã bắt đầu, bạn không thể tham gia lúc này.");
+                return;
+            }
+            if (snapshot.hasChild('Players/' + myName)) {
+                showPopup("⚠️ Trùng Tên", "Tên này đã có trong phòng!\nVui lòng thêm số thứ tự vào sau tên.");
+            } else {
+                // 1. CHUYỂN GIAO DIỆN NGAY LẬP TỨC (Bypass độ trễ mạng)
+                document.getElementById('student-view').style.display = 'none';
+                document.getElementById('rules-view').style.display = 'block';
+                
+                // 2. LƯU DỮ LIỆU NGẦM XUỐNG CSDL
+                saveSession(myRoomPIN, myName); 
+                currentPlayerRef = db.ref('Rooms/' + myRoomPIN + '/Players/' + myName);
+                
+                currentPlayerRef.set({
+                    state: 'reading', score: 0, lives: 3, level: 1, isFinished: false
+                });
+                
+                currentPlayerRef.onDisconnect().remove();
+                listenForKick();
+            }
+        } else { 
+            showPopup("❌ Sai Mã", "Mã phòng không tồn tại. Vui lòng hỏi lại Giáo viên!"); 
         }
-
-        let roomData = snapshot.val();
-        if (roomData.status !== 'waiting') {
-            showPopup("⛔ Phòng Đã Khóa", "Trò chơi đã bắt đầu, bạn không thể tham gia lúc này.");
-            return;
-        }
-
-        const provider = new firebase.auth.GoogleAuthProvider();
-        firebase.auth().signInWithPopup(provider).then((result) => {
-            const user = result.user;
-            myName = user.displayName || user.email.split('@')[0];
-
-            db.ref('Rooms/' + myRoomPIN + '/Players').once('value', playerSnap => {
-                if (playerSnap.hasChild(myName)) {
-                    showPopup("⚠️ Trùng Tên", `Tên tài khoản Google (${myName}) đã có bạn khác sử dụng trong phòng này!`);
-                    firebase.auth().signOut();
-                } else {
-                    saveSession(myRoomPIN, myName); 
-                    
-                    currentPlayerRef = db.ref('Rooms/' + myRoomPIN + '/Players/' + myName);
-                    currentPlayerRef.set({
-                        state: 'reading', score: 0, lives: 3, level: 1, isFinished: false
-                    }).then(() => {
-                        currentPlayerRef.onDisconnect().remove();
-                        document.getElementById('student-view').style.display = 'none';
-                        document.getElementById('rules-view').style.display = 'block';
-                        listenForKick();
-                    });
-                }
-            });
-        }).catch((error) => {
-            showPopup("❌ Lỗi Đăng Nhập", "Không thể đăng nhập Google: " + error.message);
-        });
     });
 }
 
 function listenForKick() {
-    currentPlayerRef.on('value', snap => {
-        if (!snap.exists() && !isGameStarted) {
-            clearSession();
-            showPopup("🚪 Đã Rời Phòng", "Bạn đã bị Giáo viên kích hoặc Phòng đã bị hủy!", () => {
-                location.reload(); 
-            });
-        }
-    });
+    // Độ trễ 1 giây đảm bảo Firebase khởi tạo thành công local cache trước khi lắng nghe
+    setTimeout(() => {
+        currentPlayerRef.on('value', snap => {
+            let inRules = document.getElementById('rules-view').style.display === 'block';
+            let inWaiting = document.getElementById('student-waiting-view').style.display === 'block';
+            
+            if (!snap.exists() && !isGameStarted && (inRules || inWaiting)) {
+                clearSession();
+                showPopup("🚪 Đã Rời Phòng", "Bạn đã bị Giáo viên kích hoặc Phòng đã bị hủy!", () => {
+                    location.reload(); 
+                });
+            }
+        });
+    }, 1000);
 }
 
 function setupWaitingRoomListeners() {
@@ -394,17 +417,16 @@ function startTimer(isNewLevel = false) {
     clearInterval(timerInterval); 
     
     if (isNewLevel === true) {
-        timeLeft = 180; // Bắt đầu màn mới thì reset 3 phút
+        timeLeft = 180; 
         localStorage.setItem('noel_endtime_v2', (Date.now() + 180000).toString()); 
     } else {
-        // Khôi phục thời gian khi F5
         let savedEndTime = localStorage.getItem('noel_endtime_v2');
         if (savedEndTime && !isNaN(savedEndTime)) {
             let diff = parseInt(savedEndTime, 10) - Date.now();
             timeLeft = Math.floor(diff / 1000);
             if (timeLeft < 0) timeLeft = 0; 
         } else {
-            timeLeft = 180; // Tránh lỗi dữ liệu
+            timeLeft = 180; 
         }
     }
     
@@ -412,7 +434,7 @@ function startTimer(isNewLevel = false) {
 
     timerInterval = setInterval(() => {
         timeLeft--;
-        if (timeLeft < 0) timeLeft = 0; // Tránh giờ bị âm
+        if (timeLeft < 0) timeLeft = 0; 
         updateTimerUI();
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
@@ -499,7 +521,7 @@ function loadLevel() {
     currentPos = null; visitedCells.clear();
     saveMapLocal(); 
     renderBoard();
-    startTimer(true); // Gửi cờ true để khởi tạo lại đồng hồ 3 phút khi qua màn mới
+    startTimer(true); 
 }
 
 function renderBoard() {
@@ -573,7 +595,7 @@ function handleMove(r, c) {
         if (!visitedCells.has(cellKey)) { score += 100; visitedCells.add(cellKey); }
         document.getElementById("ui-score").textContent = score;
         syncDataToFirebase(); 
-        saveMapLocal(); // Cập nhật vị trí sau khi di chuyển
+        saveMapLocal(); 
         renderBoard(); 
     } else {
         cellEl.classList.add("bomb");
