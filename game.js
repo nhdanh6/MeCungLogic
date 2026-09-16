@@ -16,11 +16,9 @@ let currentPos = null, mapData = null, visitedCells = new Set();
 let isGameStarted = false;
 let currentPlayersCount = 0, readyPlayersCount = 0;
 let timerInterval, timeLeft = 180;
-let currentPlayerRef = null; // Dùng để quản lý kết nối ngắt
+let currentPlayerRef = null;
 
-/* ==========================================
-   HÀM THÔNG BÁO TÙY CHỈNH (POPUP)
-========================================== */
+/* POPUP CUSTOM */
 function showPopup(title, message, callback) {
     const modal = document.getElementById('custom-popup');
     document.getElementById('popup-title').innerHTML = title;
@@ -31,18 +29,17 @@ function showPopup(title, message, callback) {
     btn.onclick = null; 
     btn.onclick = () => {
         modal.style.display = 'none';
-        if(typeof callback === 'function') callback();
+        if (typeof callback === 'function') callback();
     };
 }
 
 /* ==========================================
-   GIÁO VIÊN (BẢO MẬT & KIỂM SOÁT)
+   GIÁO VIÊN
 ========================================== */
 async function hashPassword(message) {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function initHost() {
@@ -62,6 +59,7 @@ async function verifyHost() {
         myRoomPIN = Math.floor(1000 + Math.random() * 9000).toString();
         document.getElementById('room-pin').textContent = myRoomPIN;
         db.ref('Rooms/' + myRoomPIN).set({ status: 'waiting' });
+        
         db.ref('Rooms/' + myRoomPIN + '/Players').on('value', (snapshot) => {
             const data = snapshot.val();
             renderLeaderboard(data, 'host-leaderboard');
@@ -69,6 +67,12 @@ async function verifyHost() {
         });
     } else {
         showPopup("❌ Sai Mật Khẩu", "Mật khẩu quản trị không chính xác!");
+    }
+}
+
+function kickPlayer(name) {
+    if (confirm(`Bạn có chắc muốn xóa học sinh "${name}" khỏi phòng?`)) {
+        db.ref(`Rooms/${myRoomPIN}/Players/${name}`).remove();
     }
 }
 
@@ -89,11 +93,12 @@ function renderWaitingList(playersData) {
     
     names.forEach(name => {
         let p = playersData[name];
+        let kickBtn = `<span onclick="kickPlayer('${name}')" style="cursor:pointer; color:#e74c3c; margin-left:8px; font-weight:bold;">✖</span>`;
         if (p.state === 'ready') {
             readyPlayersCount++;
-            list.innerHTML += `<span class="waiting-tag">🧑‍🎓 ${name}</span>`;
+            list.innerHTML += `<span class="waiting-tag">🧑‍🎓 ${name} ${kickBtn}</span>`;
         } else {
-            list.innerHTML += `<span class="waiting-tag" style="background:#bdc3c7; color:#fff; border-color:#7f8c8d;">📖 ${name} (Đang đọc luật)</span>`;
+            list.innerHTML += `<span class="waiting-tag" style="background:#bdc3c7; color:#fff; border-color:#7f8c8d;">📖 ${name} (Đang đọc luật) ${kickBtn}</span>`;
         }
     });
 
@@ -107,7 +112,7 @@ function startHostGame() {
         return; 
     }
     if (readyPlayersCount < currentPlayersCount) {
-        showPopup("⚠️ Lớp chưa sẵn sàng!", `Còn ${currentPlayersCount - readyPlayersCount} bạn đang đọc luật chơi. Vui lòng đợi các bạn bấm Sẵn sàng!`);
+        showPopup("⚠️ Lớp chưa sẵn sàng!", `Còn ${currentPlayersCount - readyPlayersCount} bạn đang đọc luật chơi. Bạn có thể đợi hoặc bấm nút ✖ để xóa tài khoản ảo!`);
         return;
     }
     db.ref('Rooms/' + myRoomPIN).update({ status: 'playing' });
@@ -115,8 +120,16 @@ function startHostGame() {
     document.getElementById('host-playing-area').style.display = 'block';
 }
 
+function cancelRoom() {
+    if (confirm("⚠️ Bạn có chắc chắn muốn hủy phòng? Tất cả học sinh sẽ bị kích ra ngoài.")) {
+        db.ref('Rooms/' + myRoomPIN).remove(); 
+        document.getElementById('host-view').style.display = 'none';
+        document.getElementById('role-selection').style.display = 'block';
+    }
+}
+
 /* ==========================================
-   HỌC SINH (GOOGLE AUTH & CHỐNG TẠO ẢO)
+   HỌC SINH 
 ========================================== */
 function showStudentLogin() {
     document.getElementById('role-selection').style.display = 'none';
@@ -124,66 +137,64 @@ function showStudentLogin() {
 }
 
 function backToHome() {
-    if (currentPlayerRef) {
-        currentPlayerRef.remove(); // Xóa dữ liệu khi học sinh chủ động bấm quay lại
-    }
+    if (currentPlayerRef) currentPlayerRef.remove();
     document.getElementById('host-login-view').style.display = 'none';
     document.getElementById('student-view').style.display = 'none';
     document.getElementById('rules-view').style.display = 'none';
     document.getElementById('role-selection').style.display = 'block';
 }
 
-// Đăng nhập bằng tài khoản Google
-function loginWithGoogle() {
+function verifyRoom() {
     myRoomPIN = document.getElementById('pin-input').value.trim();
+    myName = document.getElementById('name-input').value.trim();
 
-    if (!myRoomPIN) { 
-        showPopup("⚠️ Lỗi", "Vui lòng nhập Mã phòng trước khi đăng nhập!"); 
+    if (!myRoomPIN || !myName) { 
+        showPopup("⚠️ Lỗi", "Vui lòng nhập đủ Mã phòng và Tên của bạn!"); 
         return; 
     }
 
     db.ref('Rooms/' + myRoomPIN).once('value', snapshot => {
-        if (!snapshot.exists()) {
-            showPopup("❌ Sai Mã", "Mã phòng không tồn tại. Vui lòng hỏi lại Giáo viên!");
-            return;
-        }
-
-        let roomData = snapshot.val();
-        if (roomData.status !== 'waiting') {
-            showPopup("⛔ Phòng Đã Khóa", "Trò chơi đã bắt đầu, bạn không thể tham gia lúc này.");
-            return;
-        }
-
-        // Kích hoạt bảng popup đăng nhập Google của Firebase
-        const provider = new firebase.auth.GoogleAuthProvider();
-        firebase.auth().signInWithPopup(provider).then((result) => {
-            const user = result.user;
-            myName = user.displayName || user.email.split('@')[0]; // Lấy tên hiển thị từ Google
-
-            // Kiểm tra xem tên này đã tồn tại trong phòng chưa
-            db.ref('Rooms/' + myRoomPIN + '/Players').once('value', playerSnap => {
-                if (playerSnap.hasChild(myName)) {
-                    showPopup("⚠️ Trùng Tên", `Tên tài khoản Google (${myName}) đã có bạn khác sử dụng trong phòng này!`);
-                    firebase.auth().signOut();
-                } else {
-                    // Tạo tham chiếu dữ liệu học sinh
-                    currentPlayerRef = db.ref('Rooms/' + myRoomPIN + '/Players/' + myName);
-                    
-                    // Đẩy dữ liệu ban đầu (Đang đọc luật)
-                    currentPlayerRef.set({
-                        state: 'reading', score: 0, lives: 3, level: 1, isFinished: false
-                    });
-
-                    // CƠ CHẾ QUAN TRỌNG: Nếu học sinh thoát trang hoặc mất kết nối khi đang đọc luật, tự động xóa khỏi Firebase
+        if (snapshot.exists()) {
+            let roomData = snapshot.val();
+            if (roomData.status !== 'waiting') {
+                showPopup("⛔ Phòng Đã Khóa", "Trò chơi đã bắt đầu, bạn không thể tham gia lúc này.");
+                return;
+            }
+            if (snapshot.hasChild('Players/' + myName)) {
+                showPopup("⚠️ Trùng Tên", "Tên này đã có bạn khác trong lớp sử dụng.\nVui lòng thêm số thứ tự hoặc tên đệm!");
+            } else {
+                // Đăng ký tham chiếu Học sinh
+                currentPlayerRef = db.ref('Rooms/' + myRoomPIN + '/Players/' + myName);
+                
+                // Set trạng thái ban đầu
+                currentPlayerRef.set({
+                    state: 'reading', score: 0, lives: 3, level: 1, isFinished: false
+                }).then(() => {
+                    // Cài đặt ngắt kết nối tự động xóa
                     currentPlayerRef.onDisconnect().remove();
 
+                    // Chuyển giao diện sang trang Đọc luật
                     document.getElementById('student-view').style.display = 'none';
                     document.getElementById('rules-view').style.display = 'block';
-                }
+
+                    // Lắng nghe sự kiện bị Kích (chỉ kích hoạt sau khi đã vào thành công)
+                    listenForKick();
+                });
+            }
+        } else { 
+            showPopup("❌ Sai Mã", "Mã phòng không tồn tại. Vui lòng hỏi lại Giáo viên!"); 
+        }
+    });
+}
+
+function listenForKick() {
+    currentPlayerRef.on('value', snap => {
+        if (!snap.exists() && !isGameStarted) {
+            // Nếu bị kích hoặc phòng bị hủy
+            showPopup("🚪 Đã Rời Phòng", "Bạn đã bị Giáo viên kích hoặc Phòng đã bị hủy!", () => {
+                location.reload(); 
             });
-        }).catch((error) => {
-            showPopup("❌ Lỗi Đăng Nhập", "Không thể đăng nhập Google: " + error.message);
-        });
+        }
     });
 }
 
@@ -191,16 +202,16 @@ function joinWaitingRoom() {
     document.getElementById('rules-view').style.display = 'none';
     document.getElementById('student-waiting-view').style.display = 'block';
     
-    // Cập nhật trạng thái thành 'ready' (Đã sẵn sàng)
     if (currentPlayerRef) {
         currentPlayerRef.update({ state: 'ready' });
     }
 
+    // Lắng nghe danh sách học sinh
     db.ref('Rooms/' + myRoomPIN + '/Players').on('value', snap => {
-        if(snap.exists()) {
+        if (snap.exists()) {
             let playersData = snap.val();
             const list = document.getElementById('student-waiting-list');
-            if(list) {
+            if (list) {
                 list.innerHTML = '';
                 Object.keys(playersData).forEach(name => {
                     let p = playersData[name];
@@ -212,15 +223,29 @@ function joinWaitingRoom() {
         }
     });
 
+    // Lắng nghe trạng thái game để bắt đầu
     db.ref('Rooms/' + myRoomPIN + '/status').on('value', snap => {
         if (snap.val() === 'playing' && !isGameStarted) {
             isGameStarted = true;
+            if (currentPlayerRef) currentPlayerRef.onDisconnect().cancel();
+            
             document.getElementById('student-waiting-view').style.display = 'none';
             document.getElementById('game-view').style.display = 'flex';
             document.getElementById('ui-student-name').textContent = "🧑‍🎓 " + myName;
             loadLevel();
         }
     });
+}
+
+function leaveWaitingRoom() {
+    if (confirm("🚪 Bạn có muốn thoát khỏi phòng chờ không?")) {
+        if (currentPlayerRef) {
+            currentPlayerRef.remove(); 
+        }
+        document.getElementById('student-waiting-view').style.display = 'none';
+        document.getElementById('role-selection').style.display = 'block';
+        location.reload(); // Tải lại trang để reset hoàn toàn biến môi trường
+    }
 }
 
 function syncDataToFirebase(isFinished = false) {
@@ -232,7 +257,7 @@ function syncDataToFirebase(isFinished = false) {
 }
 
 /* ==========================================
-   BẢNG XẾP HẠNG CHUNG
+   BẢNG XẾP HẠNG
 ========================================== */
 function renderLeaderboard(playersData, containerId) {
     const board = document.getElementById(containerId);
@@ -260,7 +285,7 @@ function renderLeaderboard(playersData, containerId) {
 }
 
 /* ==========================================
-   LÔGIC GAME PLAY, THỜI GIAN & BFS MA TRẬN
+   ĐẾM GIỜ & THUẬT TOÁN BÀN CỜ
 ========================================== */
 function startTimer() {
     clearInterval(timerInterval); 
@@ -301,17 +326,11 @@ function generateMap() {
         grid = [];
         for (let r = 0; r < 8; r++) {
             let row = [];
-            for (let c = 0; c < 8; c++) {
-                row.push(['AND', 'OR', 'XOR'][Math.floor(Math.random() * 3)]);
-            }
+            for (let c = 0; c < 8; c++) row.push(['AND', 'OR', 'XOR'][Math.floor(Math.random() * 3)]);
             grid.push(row);
         }
 
-        rowH[0] = 1; 
-        colH[0] = 1; 
-        grid[0][0] = 'AND'; 
-        grid[7][7] = 'ĐÍCH';
-
+        rowH[0] = 1; colH[0] = 1; grid[0][0] = 'AND'; grid[7][7] = 'ĐÍCH';
         isValidPath = checkPathExists(rowH, colH, grid);
     }
 
