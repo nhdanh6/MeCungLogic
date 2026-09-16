@@ -18,6 +18,94 @@ let currentPlayersCount = 0, readyPlayersCount = 0;
 let timerInterval, timeLeft = 180;
 let currentPlayerRef = null;
 
+/* ==========================================
+   QUẢN LÝ LƯU TRỮ TRẠNG THÁI (SESSION & LOCAL STORAGE)
+========================================== */
+function saveSession(room, name) {
+    localStorage.setItem('noel_room', room);
+    localStorage.setItem('noel_name', name);
+}
+
+function clearSession() {
+    localStorage.removeItem('noel_room');
+    localStorage.removeItem('noel_name');
+    localStorage.removeItem('noel_map');
+    localStorage.removeItem('noel_pos');
+    localStorage.removeItem('noel_visited');
+}
+
+function saveMapLocal() {
+    localStorage.setItem('noel_map', JSON.stringify(mapData));
+    localStorage.setItem('noel_pos', JSON.stringify(currentPos));
+    localStorage.setItem('noel_visited', JSON.stringify(Array.from(visitedCells)));
+}
+
+// Tự động khôi phục nếu học sinh tải lại trang (F5)
+window.onload = function() {
+    let savedRoom = localStorage.getItem('noel_room');
+    let savedName = localStorage.getItem('noel_name');
+
+    if (savedRoom && savedName) {
+        myRoomPIN = savedRoom;
+        myName = savedName;
+
+        db.ref('Rooms/' + myRoomPIN).once('value', snapshot => {
+            if (snapshot.exists() && snapshot.hasChild('Players/' + myName)) {
+                let roomData = snapshot.val();
+                let myData = roomData.Players[myName];
+                
+                currentPlayerRef = db.ref('Rooms/' + myRoomPIN + '/Players/' + myName);
+
+                if (roomData.status === 'playing') {
+                    // ĐANG CHƠI THÌ KHÔI PHỤC GAME
+                    isGameStarted = true;
+                    score = myData.score;
+                    lives = myData.lives;
+                    level = myData.level;
+
+                    document.getElementById('role-selection').style.display = 'none';
+                    document.getElementById('game-view').style.display = 'flex';
+                    document.getElementById('ui-student-name').textContent = "🧑‍🎓 " + myName;
+                    
+                    document.getElementById("ui-level").textContent = level;
+                    document.getElementById("ui-lives").textContent = lives;
+                    document.getElementById("ui-score").textContent = score;
+
+                    // Khôi phục bản đồ và vị trí hiện tại
+                    let savedMap = localStorage.getItem('noel_map');
+                    if (savedMap) {
+                        mapData = JSON.parse(savedMap);
+                        currentPos = JSON.parse(localStorage.getItem('noel_pos'));
+                        visitedCells = new Set(JSON.parse(localStorage.getItem('noel_visited') || "[]"));
+                        renderBoard();
+                        startTimer();
+                    } else {
+                        loadLevel(); // Nếu lỗi file save thì nạp lại màn mới
+                    }
+
+                    // Đã vào game thì hủy ngắt kết nối để không mất điểm oan
+                    currentPlayerRef.onDisconnect().cancel();
+                    
+                } else {
+                    // NẾU ĐANG Ở PHÒNG CHỜ
+                    currentPlayerRef.onDisconnect().remove();
+                    listenForKick();
+                    
+                    document.getElementById('role-selection').style.display = 'none';
+                    if (myData.state === 'ready') {
+                        document.getElementById('student-waiting-view').style.display = 'block';
+                        setupWaitingRoomListeners(); // Bật lại listener phòng chờ
+                    } else {
+                        document.getElementById('rules-view').style.display = 'block';
+                    }
+                }
+            } else {
+                clearSession(); // Phòng không tồn tại hoặc bị kick thì xóa rác
+            }
+        });
+    }
+};
+
 /* POPUP CUSTOM */
 function showPopup(title, message, callback) {
     const modal = document.getElementById('custom-popup');
@@ -138,6 +226,7 @@ function showStudentLogin() {
 
 function backToHome() {
     if (currentPlayerRef) currentPlayerRef.remove();
+    clearSession();
     document.getElementById('host-login-view').style.display = 'none';
     document.getElementById('student-view').style.display = 'none';
     document.getElementById('rules-view').style.display = 'none';
@@ -163,21 +252,15 @@ function verifyRoom() {
             if (snapshot.hasChild('Players/' + myName)) {
                 showPopup("⚠️ Trùng Tên", "Tên này đã có bạn khác trong lớp sử dụng.\nVui lòng thêm số thứ tự hoặc tên đệm!");
             } else {
-                // Đăng ký tham chiếu Học sinh
-                currentPlayerRef = db.ref('Rooms/' + myRoomPIN + '/Players/' + myName);
+                saveSession(myRoomPIN, myName); // Lưu bộ nhớ tạm
                 
-                // Set trạng thái ban đầu
+                currentPlayerRef = db.ref('Rooms/' + myRoomPIN + '/Players/' + myName);
                 currentPlayerRef.set({
                     state: 'reading', score: 0, lives: 3, level: 1, isFinished: false
                 }).then(() => {
-                    // Cài đặt ngắt kết nối tự động xóa
                     currentPlayerRef.onDisconnect().remove();
-
-                    // Chuyển giao diện sang trang Đọc luật
                     document.getElementById('student-view').style.display = 'none';
                     document.getElementById('rules-view').style.display = 'block';
-
-                    // Lắng nghe sự kiện bị Kích (chỉ kích hoạt sau khi đã vào thành công)
                     listenForKick();
                 });
             }
@@ -190,7 +273,7 @@ function verifyRoom() {
 function listenForKick() {
     currentPlayerRef.on('value', snap => {
         if (!snap.exists() && !isGameStarted) {
-            // Nếu bị kích hoặc phòng bị hủy
+            clearSession();
             showPopup("🚪 Đã Rời Phòng", "Bạn đã bị Giáo viên kích hoặc Phòng đã bị hủy!", () => {
                 location.reload(); 
             });
@@ -198,15 +281,7 @@ function listenForKick() {
     });
 }
 
-function joinWaitingRoom() {
-    document.getElementById('rules-view').style.display = 'none';
-    document.getElementById('student-waiting-view').style.display = 'block';
-    
-    if (currentPlayerRef) {
-        currentPlayerRef.update({ state: 'ready' });
-    }
-
-    // Lắng nghe danh sách học sinh
+function setupWaitingRoomListeners() {
     db.ref('Rooms/' + myRoomPIN + '/Players').on('value', snap => {
         if (snap.exists()) {
             let playersData = snap.val();
@@ -223,7 +298,6 @@ function joinWaitingRoom() {
         }
     });
 
-    // Lắng nghe trạng thái game để bắt đầu
     db.ref('Rooms/' + myRoomPIN + '/status').on('value', snap => {
         if (snap.val() === 'playing' && !isGameStarted) {
             isGameStarted = true;
@@ -237,14 +311,23 @@ function joinWaitingRoom() {
     });
 }
 
+function joinWaitingRoom() {
+    document.getElementById('rules-view').style.display = 'none';
+    document.getElementById('student-waiting-view').style.display = 'block';
+    
+    if (currentPlayerRef) {
+        currentPlayerRef.update({ state: 'ready' });
+    }
+    setupWaitingRoomListeners();
+}
+
 function leaveWaitingRoom() {
     if (confirm("🚪 Bạn có muốn thoát khỏi phòng chờ không?")) {
-        if (currentPlayerRef) {
-            currentPlayerRef.remove(); 
-        }
+        if (currentPlayerRef) currentPlayerRef.remove(); 
+        clearSession();
         document.getElementById('student-waiting-view').style.display = 'none';
         document.getElementById('role-selection').style.display = 'block';
-        location.reload(); // Tải lại trang để reset hoàn toàn biến môi trường
+        location.reload(); 
     }
 }
 
@@ -378,6 +461,7 @@ function loadLevel() {
     document.getElementById("ui-score").textContent = score;
     mapData = generateMap();
     currentPos = null; visitedCells.clear();
+    saveMapLocal(); // Lưu ma trận mới
     renderBoard();
     startTimer();
 }
@@ -452,7 +536,9 @@ function handleMove(r, c) {
         currentPos = {r, c};
         if (!visitedCells.has(cellKey)) { score += 100; visitedCells.add(cellKey); }
         document.getElementById("ui-score").textContent = score;
-        syncDataToFirebase(); renderBoard(); 
+        syncDataToFirebase(); 
+        saveMapLocal(); // Cập nhật vị trí hiện tại
+        renderBoard(); 
     } else {
         cellEl.classList.add("bomb");
         lives--; score -= 200; 
@@ -475,6 +561,7 @@ function handleMove(r, c) {
 
 function finishGame() {
     clearInterval(timerInterval);
+    clearSession(); // Kết thúc game thì xóa dữ liệu bộ nhớ tạm
     document.getElementById('game-view').style.display = 'none';
     document.getElementById('end-view').style.display = 'block';
     document.getElementById('end-student-name').textContent = myName;
