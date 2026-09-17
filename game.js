@@ -17,6 +17,7 @@ let isGameStarted = false;
 let currentPlayersCount = 0, readyPlayersCount = 0;
 let timerInterval, timeLeft = 180;
 let currentPlayerRef = null;
+let gameStartTime = null;
 
 /* ==========================================
    QUẢN LÝ LƯU TRỮ TRẠNG THÁI (CHỐNG F5)
@@ -33,6 +34,8 @@ function clearSession() {
     localStorage.removeItem('noel_pos');
     localStorage.removeItem('noel_visited');
     localStorage.removeItem('noel_endtime_v2'); 
+    localStorage.removeItem('noel_start_time');
+    gameStartTime = null;
 }
 
 function saveMapLocal() {
@@ -49,6 +52,10 @@ function cleanName(name) {
 window.onload = function() {
     let savedRoom = localStorage.getItem('noel_room');
     let savedName = localStorage.getItem('noel_name');
+    let savedStartTime = localStorage.getItem('noel_start_time');
+    if (savedStartTime) {
+        gameStartTime = parseInt(savedStartTime, 10);
+    }
 
     if (savedRoom && savedName) {
         myRoomPIN = savedRoom;
@@ -215,8 +222,13 @@ function startHostGame() {
 
 function cancelRoom() {
     if (confirm("⚠️ Bạn có chắc chắn muốn hủy phòng? Tất cả học sinh sẽ bị kích ra ngoài.")) {
-        db.ref('Rooms/' + myRoomPIN).remove(); 
+        closeSpectate();
+        if (myRoomPIN) {
+            db.ref('Rooms/' + myRoomPIN).remove(); 
+        }
         document.getElementById('host-view').style.display = 'none';
+        document.getElementById('host-waiting-area').style.display = 'block';
+        document.getElementById('host-playing-area').style.display = 'none';
         document.getElementById('role-selection').style.display = 'block';
     }
 }
@@ -310,17 +322,36 @@ function joinRoomLogic() {
 function listenForKick() {
     // Độ trễ 1 giây đảm bảo Firebase khởi tạo thành công local cache trước khi lắng nghe
     setTimeout(() => {
+        if (!currentPlayerRef) return;
         currentPlayerRef.on('value', snap => {
             let inRules = document.getElementById('rules-view').style.display === 'block';
             let inWaiting = document.getElementById('student-waiting-view').style.display === 'block';
+            let inGame = document.getElementById('game-view').style.display === 'flex';
             
-            if (!snap.exists() && !isGameStarted && (inRules || inWaiting)) {
+            if (!snap.exists() && (inRules || inWaiting || inGame)) {
+                clearInterval(timerInterval);
                 clearSession();
                 showPopup("🚪 Đã Rời Phòng", "Bạn đã bị Giáo viên kích hoặc Phòng đã bị hủy!", () => {
                     location.reload(); 
                 });
             }
         });
+
+        if (myRoomPIN) {
+            db.ref('Rooms/' + myRoomPIN).on('value', snap => {
+                let inRules = document.getElementById('rules-view').style.display === 'block';
+                let inWaiting = document.getElementById('student-waiting-view').style.display === 'block';
+                let inGame = document.getElementById('game-view').style.display === 'flex';
+                
+                if (!snap.exists() && (inRules || inWaiting || inGame)) {
+                    clearInterval(timerInterval);
+                    clearSession();
+                    showPopup("🚪 Phòng Đã Bị Hủy", "Giáo viên đã giải tán phòng chơi này!", () => {
+                        location.reload(); 
+                    });
+                }
+            });
+        }
     }, 1000);
 }
 
@@ -346,6 +377,11 @@ function setupWaitingRoomListeners() {
             isGameStarted = true;
             if (currentPlayerRef) currentPlayerRef.onDisconnect().cancel();
             
+            if (!gameStartTime) {
+                gameStartTime = Date.now();
+                localStorage.setItem('noel_start_time', gameStartTime.toString());
+            }
+
             document.getElementById('student-waiting-view').style.display = 'none';
             document.getElementById('game-view').style.display = 'flex';
             document.getElementById('ui-student-name').textContent = "🧑‍🎓 " + myName;
@@ -374,35 +410,102 @@ function leaveWaitingRoom() {
     }
 }
 
-function syncDataToFirebase(isFinished = false) {
+function leaveGamePlaying() {
+    if (confirm("🚪 Bạn có chắc chắn muốn rời khỏi trận đấu? Quá trình chơi sẽ bị xóa.")) {
+        clearInterval(timerInterval);
+        if (currentPlayerRef) {
+            currentPlayerRef.remove(); 
+        }
+        clearSession();
+        document.getElementById('game-view').style.display = 'none';
+        document.getElementById('role-selection').style.display = 'block';
+        location.reload(); 
+    }
+}
+
+function formatDuration(seconds) {
+    if (seconds === undefined || seconds === null || isNaN(seconds) || seconds < 0) return "00:00";
+    let m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    let s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
+function syncDataToFirebase(isFinished = false, overrideTime = null) {
     if (currentPlayerRef) {
-        currentPlayerRef.update({
-            score: score, lives: lives, level: (level > 5) ? 5 : level, isFinished: isFinished
-        });
+        let elapsed = overrideTime !== null ? overrideTime : (gameStartTime ? Math.floor((Date.now() - gameStartTime) / 1000) : 0);
+        let updateObj = {
+            score: score, 
+            lives: lives, 
+            level: (level > 5) ? 5 : level, 
+            isFinished: isFinished,
+            totalTime: elapsed
+        };
+        if (isFinished) {
+            updateObj.completionTime = elapsed;
+            updateObj.finishedAt = Date.now();
+        }
+        if (mapData) {
+            updateObj.boardState = {
+                mapData: mapData,
+                currentPos: currentPos,
+                visitedCells: Array.from(visitedCells)
+            };
+        }
+        currentPlayerRef.update(updateObj);
     }
 }
 
 /* ==========================================
-   BẢNG XẾP HẠNG
-========================================== */
+   BẢNG XẾP HẠNG (TÍNH THEO ĐIỂM SỐ & THỜI GIAN)
+========================================= */
 function renderLeaderboard(playersData, containerId) {
     const board = document.getElementById(containerId);
     if (!board) return;
     board.innerHTML = '';
     if (!playersData) return;
 
-    let players = Object.keys(playersData).map(key => ({ name: key, ...playersData[key] })).sort((a, b) => b.score - a.score);
+    let players = Object.keys(playersData).map(key => ({ name: key, ...playersData[key] })).sort((a, b) => {
+        // 1. Điểm số cao hơn xếp trước
+        if ((b.score || 0) !== (a.score || 0)) {
+            return (b.score || 0) - (a.score || 0);
+        }
+        // 2. Nếu bằng điểm, người đã hoàn thành (isFinished) xếp trước
+        let aFinished = a.isFinished ? 1 : 0;
+        let bFinished = b.isFinished ? 1 : 0;
+        if (bFinished !== aFinished) {
+            return bFinished - aFinished;
+        }
+        // 3. Nếu cùng trạng thái hoàn thành (hoặc cùng điểm), thời gian ít hơn (nhanh hơn) xếp trước
+        let timeA = (a.completionTime !== undefined && a.completionTime !== null) ? a.completionTime : (a.totalTime || 999999);
+        let timeB = (b.completionTime !== undefined && b.completionTime !== null) ? b.completionTime : (b.totalTime || 999999);
+        if (timeA !== timeB) {
+            return timeA - timeB;
+        }
+        // 4. Màn cao hơn xếp trước
+        if ((b.level || 1) !== (a.level || 1)) {
+            return (b.level || 1) - (a.level || 1);
+        }
+        return 0;
+    });
 
     players.forEach((p, index) => {
         let isMeClass = (p.name === myName) ? 'is-me' : '';
         let statusIcon = p.isFinished ? '🏁' : '🔥';
         let colorRank = index === 0 ? 'border-left-color: #f1c40f;' : (index === 1 ? 'border-left-color: #bdc3c7;' : (index === 2 ? 'border-left-color: #cd7f32;' : ''));
 
+        let spectateBtn = '';
+        if (containerId === 'host-leaderboard') {
+            spectateBtn = `<button class="btn-spectate" onclick="openSpectate('${p.name}')">👁️ Xem</button>`;
+        }
+
+        let timeVal = (p.completionTime !== undefined && p.completionTime !== null) ? p.completionTime : (p.totalTime || 0);
+        let timeStr = formatDuration(timeVal);
+
         board.innerHTML += `
             <div class="lb-item ${isMeClass}" style="${colorRank}">
                 <div class="lb-info">
-                    <span class="lb-name">#${index + 1} ${statusIcon} ${p.name}</span>
-                    <span class="lb-detail">Màn: ${p.level}/5 | ❤️ ${p.lives}</span>
+                    <span class="lb-name">#${index + 1} ${statusIcon} ${p.name} ${spectateBtn}</span>
+                    <span class="lb-detail">Màn: ${p.level}/5 | ❤️ ${p.lives} | ⏱️ ${timeStr}</span>
                 </div>
                 <div class="lb-score">${p.score}</div>
             </div>
@@ -438,9 +541,15 @@ function startTimer(isNewLevel = false) {
         updateTimerUI();
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
-            showPopup("⏰ HẾT GIỜ!", `Đã hết 3 phút cho màn này.\nHệ thống tự động chuyển sang Màn ${level + 1}.`, () => {
-                level++; lives = 3; loadLevel();
-            });
+            if (level >= 5) {
+                showPopup("⏰ HẾT GIỜ!", `Đã hết 3 phút cho Màn 5.\nTrò chơi kết thúc!`, () => {
+                    finishGame();
+                });
+            } else {
+                showPopup("⏰ HẾT GIỜ!", `Đã hết 3 phút cho màn này.\nHệ thống tự động chuyển sang Màn ${level + 1}.`, () => {
+                    level++; lives = 3; loadLevel();
+                });
+            }
         }
     }, 1000);
 }
@@ -514,12 +623,17 @@ function checkPathExists(rowH, colH, grid) {
 
 function loadLevel() {
     if (level > 5) { finishGame(); return; }
+    if (!gameStartTime) {
+        gameStartTime = Date.now();
+        localStorage.setItem('noel_start_time', gameStartTime.toString());
+    }
     document.getElementById("ui-level").textContent = level;
     document.getElementById("ui-lives").textContent = lives;
     document.getElementById("ui-score").textContent = score;
     mapData = generateMap();
     currentPos = null; visitedCells.clear();
     saveMapLocal(); 
+    syncDataToFirebase();
     renderBoard();
     startTimer(true); 
 }
@@ -546,7 +660,7 @@ function renderBoard() {
             cell.className = "cell game-cell";
             cell.id = `cell-${r}-${c}`;
             if (r === 7 && c === 7) {
-                cell.textContent = "🎁"; cell.classList.add("treasure");
+                cell.textContent = "🥮"; cell.classList.add("treasure");
             } else { cell.textContent = mapData.grid[r][c]; }
             
             if (visitedCells.has(`${r}-${c}`)) cell.classList.add("visited");
@@ -582,8 +696,18 @@ function handleMove(r, c) {
 
     if (r === 7 && c === 7) {
         clearInterval(timerInterval);
-        score += 500; syncDataToFirebase();
-        showPopup("🎉 XUẤT SẮC!", `Chúc mừng bạn đã vượt qua màn ${level}!`, () => { level++; loadLevel(); });
+        score += 500;
+        if (level >= 5) {
+            syncDataToFirebase();
+            showPopup("🎉 HOÀN THÀNH XUẤT SẮC!", `Chúc mừng bạn đã vượt qua Màn 5 và hoàn thành trò chơi!`, () => {
+                finishGame();
+            });
+        } else {
+            syncDataToFirebase();
+            showPopup("🎉 XUẤT SẮC!", `Chúc mừng bạn đã vượt qua màn ${level}!`, () => {
+                level++; loadLevel();
+            });
+        }
         return;
     }
 
@@ -603,11 +727,24 @@ function handleMove(r, c) {
         
         if (lives <= 0) {
             clearInterval(timerInterval);
-            score -= 1000; lives = 3;     
-            document.getElementById("ui-score").textContent = score;
-            document.getElementById("ui-lives").textContent = lives;
-            syncDataToFirebase();
-            showPopup("💀 HẾT MẠNG", `Bạn mất 3 mạng và bị trừ 1000 điểm.\nChuyển sang Màn ${level + 1}.`, () => { level++; loadLevel(); });
+            score -= 1000;
+            if (level >= 5) {
+                lives = 0;
+                document.getElementById("ui-score").textContent = score;
+                document.getElementById("ui-lives").textContent = lives;
+                syncDataToFirebase();
+                showPopup("💀 HẾT MẠNG", `Bạn mất 3 mạng và bị trừ 1000 điểm.\nĐã kết thúc Màn 5. Trò chơi kết thúc!`, () => {
+                    finishGame();
+                });
+            } else {
+                lives = 3;
+                document.getElementById("ui-score").textContent = score;
+                document.getElementById("ui-lives").textContent = lives;
+                syncDataToFirebase();
+                showPopup("💀 HẾT MẠNG", `Bạn mất 3 mạng và bị trừ 1000 điểm.\nChuyển sang Màn ${level + 1}.`, () => {
+                    level++; loadLevel();
+                });
+            }
         } else {
             document.getElementById("ui-score").textContent = score;
             document.getElementById("ui-lives").textContent = lives;
@@ -619,10 +756,104 @@ function handleMove(r, c) {
 
 function finishGame() {
     clearInterval(timerInterval);
+    let finalDuration = gameStartTime ? Math.floor((Date.now() - gameStartTime) / 1000) : 0;
+    syncDataToFirebase(true, finalDuration);
     clearSession(); 
     document.getElementById('game-view').style.display = 'none';
     document.getElementById('end-view').style.display = 'block';
     document.getElementById('end-student-name').textContent = myName;
     document.getElementById('my-final-score').textContent = score;
-    syncDataToFirebase(true);
+}
+
+/* ==========================================
+   TÍNH NĂNG XEM TRỰC TIẾP (DÀNH CHO GIÁO VIÊN)
+========================================== */
+let currentSpectateStudent = null;
+let spectateRef = null;
+let spectateListener = null;
+
+function openSpectate(studentName) {
+    currentSpectateStudent = studentName;
+    const modal = document.getElementById('spectate-modal');
+    document.getElementById('spectate-student-name').textContent = `Đang xem: ${studentName}`;
+    modal.style.display = 'flex';
+
+    if (spectateRef && spectateListener) {
+        spectateRef.off('value', spectateListener);
+    }
+
+    spectateRef = db.ref(`Rooms/${myRoomPIN}/Players/${studentName}`);
+    spectateListener = spectateRef.on('value', snap => {
+        if (!snap.exists()) {
+            showPopup("⚠️ Thông báo", `Học sinh "${studentName}" đã rời phòng!`, () => {
+                closeSpectate();
+            });
+            return;
+        }
+        let data = snap.val();
+        document.getElementById('spec-level').textContent = data.level || 1;
+        document.getElementById('spec-lives').textContent = (data.lives !== undefined) ? data.lives : 3;
+        document.getElementById('spec-score').textContent = data.score || 0;
+
+        if (data.boardState && data.boardState.mapData) {
+            renderSpectateBoard(data.boardState);
+        } else {
+            document.getElementById('spec-game-container').innerHTML = '<p style="color:#7f8c8d; padding:20px 0;">Học sinh chưa vào màn chơi.</p>';
+        }
+    });
+}
+
+function closeSpectate() {
+    if (spectateRef && spectateListener) {
+        spectateRef.off('value', spectateListener);
+        spectateRef = null;
+        spectateListener = null;
+    }
+    currentSpectateStudent = null;
+    const modal = document.getElementById('spectate-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderSpectateBoard(boardState) {
+    const container = document.getElementById("spec-game-container");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const map = boardState.mapData;
+    const pos = boardState.currentPos;
+    const visited = new Set(boardState.visitedCells || []);
+
+    let emptyCell = document.createElement("div");
+    emptyCell.className = "cell empty-cell";
+    container.appendChild(emptyCell);
+
+    for (let c = 0; c < 8; c++) {
+        let cell = document.createElement("div");
+        cell.className = "cell header-cell";
+        cell.textContent = map.colH[c];
+        container.appendChild(cell);
+    }
+
+    for (let r = 0; r < 8; r++) {
+        let rowHeader = document.createElement("div");
+        rowHeader.className = "cell header-cell";
+        rowHeader.textContent = map.rowH[r];
+        container.appendChild(rowHeader);
+
+        for (let c = 0; c < 8; c++) {
+            let cell = document.createElement("div");
+            cell.className = "cell game-cell spec-cell";
+            if (r === 7 && c === 7) {
+                cell.textContent = "🥮";
+                cell.classList.add("treasure");
+            } else {
+                cell.textContent = map.grid[r][c];
+            }
+
+            if (visited.has(`${r}-${c}`)) cell.classList.add("visited");
+            if (pos && pos.r === r && pos.c === c) cell.classList.add("current");
+
+            container.appendChild(cell);
+        }
+    }
 }

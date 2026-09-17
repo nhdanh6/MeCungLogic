@@ -1,6 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+/* ========================================================
+   CHỦ ĐỀ TẾT TRUNG THU (MID-AUTUMN FESTIVAL THEME)
+   ======================================================== */
+
+:root {
+    --moon-gold: #f1c40f;
+    --moon-light: #fff8d6;
+    --lantern-red: #c0392b;
+    --lantern-dark-red: #8f1d1d;
+    --lantern-bright: #e74c3c;
+    --harvest-orange: #e67e22;
+    --amber-gold: #f39c12;
+    --jade-green: #27ae60;
+    --night-sky-1: #070b19;
+    --night-sky-2: #0f172a;
+    --night-sky-3: #1e293b;
+    --card-bg: rgba(255, 255, 255, 0.95);
+    --border-gold: #f1c40f;
+}
+
+* {
+    box-sizing: border-box;
+}
+
 body { 
     font-family: 'Nunito', 'Segoe UI', Tahoma, sans-serif; 
-    background: linear-gradient(135deg, #1f4037 0%, #99f2c8 100%);
+    background: radial-gradient(circle at 80% 15%, #1e284f 0%, #0e162f 45%, #060914 100%) fixed;
     min-height: 100vh;
     text-align: center; 
     color: #2c3e50;
@@ -9,123 +35,945 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
+    overflow-x: hidden;
 }
+
+/* ========================================================
+   TRANG TRÍ BẦU TRỜI ĐÊM THU (MOON, STARS, CLOUDS, LANTERNS)
+   ======================================================== */
+
+.sky-decorations {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+
+/* VẦNG TRĂNG RẰM */
+.moon {
+    position: absolute;
+    top: 25px;
+    right: 5%;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle at 35% 35%, #fffdf0 0%, #ffefa6 50%, #f5c518 90%, #e1a100 100%);
+    border-radius: 50%;
+    box-shadow: 
+        0 0 25px rgba(255, 243, 160, 0.9),
+        0 0 60px rgba(241, 196, 15, 0.6),
+        0 0 120px rgba(230, 126, 34, 0.35);
+    animation: moonGlow 4s ease-in-out infinite alternate;
+}
+
+.moon-crater {
+    position: absolute;
+    background: rgba(214, 158, 46, 0.22);
+    border-radius: 50%;
+}
+.crater-1 { width: 22px; height: 22px; top: 22px; left: 45px; }
+.crater-2 { width: 14px; height: 14px; top: 55px; left: 28px; }
+.crater-3 { width: 18px; height: 18px; top: 58px; left: 60px; }
+
+.moon-halo {
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 235, 140, 0.25) 0%, rgba(255, 235, 140, 0) 70%);
+    animation: haloPulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes moonGlow {
+    0% { transform: scale(1); filter: brightness(1); }
+    100% { transform: scale(1.03); filter: brightness(1.12); }
+}
+
+@keyframes haloPulse {
+    0% { transform: scale(0.95); opacity: 0.6; }
+    100% { transform: scale(1.15); opacity: 0.95; }
+}
+
+/* ĐÁM MÂY MỜ TRÔI LỮNG LỜ */
+.cloud {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50px;
+    filter: blur(12px);
+}
+.cloud-1 {
+    width: 260px;
+    height: 45px;
+    top: 70px;
+    right: 2%;
+    animation: drift 25s linear infinite alternate;
+}
+.cloud-2 {
+    width: 320px;
+    height: 55px;
+    top: 40px;
+    right: 15%;
+    animation: drift 35s linear infinite alternate-reverse;
+}
+.cloud-3 {
+    width: 200px;
+    height: 35px;
+    top: 130px;
+    left: 8%;
+    animation: drift 30s linear infinite alternate;
+}
+
+@keyframes drift {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(50px); }
+}
+
+/* BỤI SAO LẤP LÁNH */
+.stars-layer {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(1.5px 1.5px at 15% 25%, #ffffff, rgba(255,255,255,0)),
+        radial-gradient(2px 2px at 30% 12%, #fff9d2, rgba(255,255,255,0)),
+        radial-gradient(1px 1px at 45% 30%, #ffffff, rgba(255,255,255,0)),
+        radial-gradient(2px 2px at 60% 8%, #ffeaa7, rgba(255,255,255,0)),
+        radial-gradient(1.5px 1.5px at 75% 35%, #ffffff, rgba(255,255,255,0)),
+        radial-gradient(2px 2px at 90% 18%, #ffd700, rgba(255,255,255,0)),
+        radial-gradient(1px 1px at 10% 70%, #ffffff, rgba(255,255,255,0)),
+        radial-gradient(1.5px 1.5px at 25% 85%, #fff9d2, rgba(255,255,255,0)),
+        radial-gradient(2px 2px at 85% 75%, #ffeaa7, rgba(255,255,255,0));
+    background-repeat: repeat;
+    background-size: 350px 350px;
+    animation: twinkle 3s ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+    0% { opacity: 0.5; }
+    50% { opacity: 0.85; }
+    100% { opacity: 1; }
+}
+
+/* ========================================================
+   ĐÈN LỒNG TRUYỀN THỐNG (TRUNG THU LANTERNS)
+   ======================================================== */
+
+.lantern-group {
+    position: absolute;
+    top: 0;
+    display: flex;
+    gap: 20px;
+    z-index: 1;
+}
+.lantern-left {
+    left: 20px;
+}
+.lantern-right {
+    right: 150px;
+}
+
+.lantern {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform-origin: top center;
+    animation: sway 4s ease-in-out infinite alternate;
+}
+.lantern:nth-child(2) {
+    animation-duration: 4.8s;
+    animation-delay: -1.2s;
+}
+
+.lantern-wire {
+    width: 2px;
+    height: 40px;
+    background: #d4af37;
+    box-shadow: 0 0 4px rgba(241, 196, 15, 0.5);
+}
+.lantern-large .lantern-wire {
+    height: 55px;
+}
+
+.lantern-cap-top, .lantern-cap-bottom {
+    width: 24px;
+    height: 6px;
+    background: linear-gradient(90deg, #b78727, #f1c40f, #b78727);
+    border-radius: 3px;
+    box-shadow: 0 0 4px rgba(0,0,0,0.3);
+}
+
+.lantern-body {
+    width: 46px;
+    height: 54px;
+    background: radial-gradient(ellipse at 40% 40%, #ff6b6b 0%, #d32f2f 60%, #8b0000 100%);
+    border-radius: 23px / 27px;
+    position: relative;
+    box-shadow: 
+        0 0 20px rgba(231, 76, 60, 0.75),
+        inset 0 0 10px rgba(255, 235, 59, 0.5);
+    border: 1px solid #ff7961;
+}
+.lantern-large .lantern-body {
+    width: 54px;
+    height: 64px;
+    border-radius: 27px / 32px;
+}
+
+.lantern-line {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 100%;
+    border-left: 1px dashed rgba(255, 215, 0, 0.6);
+    border-right: 1px dashed rgba(255, 215, 0, 0.6);
+}
+
+.lantern-tassel {
+    width: 4px;
+    height: 35px;
+    background: linear-gradient(180deg, #f1c40f 0%, #e67e22 80%, transparent 100%);
+    box-shadow: 0 0 8px rgba(241, 196, 15, 0.7);
+    border-radius: 0 0 2px 2px;
+}
+
+/* ĐÈN ÔNG SAO (STAR LANTERN) */
+.lantern-star .star-lantern-body {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    color: #f1c40f;
+    text-shadow: 
+        0 0 10px #f39c12,
+        0 0 20px rgba(241, 196, 15, 0.8),
+        0 0 30px rgba(230, 126, 34, 0.5);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+    line-height: 1;
+}
+
+@keyframes sway {
+    0% { transform: rotate(-5deg); }
+    100% { transform: rotate(5deg); }
+}
+
+/* ========================================================
+   KHUNG CHỨA GIAO DIỆN (CONTAINER & CARDS)
+   ======================================================== */
 
 .container { 
     width: 100%;
     max-width: 600px; 
-    background: rgba(255, 255, 255, 0.95); 
-    border-radius: 20px; 
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
-    padding: 25px;
+    background: rgba(255, 255, 255, 0.96); 
+    backdrop-filter: blur(8px);
+    border-radius: 22px; 
+    box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.5),
+        0 0 25px rgba(241, 196, 15, 0.3),
+        inset 0 0 20px rgba(255, 248, 220, 0.7);
+    padding: 28px 25px;
     box-sizing: border-box;
-    border: 3px solid #c0392b;
+    border: 2.5px solid #f1c40f;
+    position: relative;
+    z-index: 10;
 }
 
-h2.title-main { color: #c0392b; font-size: 26px; font-weight: 900; text-transform: uppercase; margin-top: 0;}
-.subtitle { color: #27ae60; font-weight: bold; font-size: 16px; margin-bottom: 25px; }
-.host-title { color: #c0392b; font-size: 36px; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px;}
-.title-warning { color: #d35400; font-weight: 900;}
-.success-title { color: #27ae60; }
-.final-score { color: #f1c40f; font-size: 36px; display: block; margin: 15px 0; text-shadow: 1px 1px 2px #333;}
+/* HỌA TIẾT VIỀN TRUNG THU TRÊN CARD */
+.container::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+    border: 1px dashed rgba(243, 156, 18, 0.35);
+    border-radius: 17px;
+    pointer-events: none;
+}
 
-/* Animations */
-.animate-pop { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-@keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
-.pulse-text { animation: pulse 1.5s infinite; color: #c0392b; font-weight: bold; }
-@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+/* ========================================================
+   TIÊU ĐỀ & VĂN BẢN (TYPOGRAPHY)
+   ======================================================== */
 
-/* Buttons & Inputs */
+h2.title-main { 
+    color: #c0392b; 
+    font-size: 26px; 
+    font-weight: 900; 
+    text-transform: uppercase; 
+    margin-top: 0;
+    text-shadow: 0 2px 10px rgba(241, 196, 15, 0.4);
+    letter-spacing: 0.5px;
+}
+
+.subtitle { 
+    color: #d35400; 
+    font-weight: 800; 
+    font-size: 15px; 
+    margin-bottom: 25px; 
+    letter-spacing: 1px;
+    text-shadow: 0 1px 2px rgba(241, 196, 15, 0.2);
+}
+
+.host-title { 
+    color: #c0392b; 
+    font-size: 34px; 
+    text-shadow: 0 2px 10px rgba(241, 196, 15, 0.4); 
+    margin-bottom: 10px;
+    font-weight: 900;
+}
+
+.title-warning { 
+    color: #d35400; 
+    font-weight: 900;
+    text-shadow: 0 1px 8px rgba(243, 156, 18, 0.3);
+}
+
+.success-title { 
+    color: #27ae60; 
+    font-weight: 900;
+    text-shadow: 0 2px 10px rgba(39, 174, 96, 0.3);
+}
+
+.final-score { 
+    color: #f39c12; 
+    font-size: 42px; 
+    display: block; 
+    margin: 15px 0; 
+    text-shadow: 
+        0 0 15px rgba(241, 196, 15, 0.8),
+        2px 2px 4px rgba(0, 0, 0, 0.2);
+    font-weight: 900;
+}
+
+/* ANIMATIONS */
+.animate-pop { 
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
+}
+
+@keyframes popIn { 
+    0% { opacity: 0; transform: scale(0.85) translateY(10px); } 
+    100% { opacity: 1; transform: scale(1) translateY(0); } 
+}
+
+.pulse-text { 
+    animation: pulseMidAutumn 1.5s infinite; 
+    color: #c0392b; 
+    font-weight: bold; 
+}
+
+@keyframes pulseMidAutumn { 
+    0% { transform: scale(1); color: #c0392b; } 
+    50% { transform: scale(1.06); color: #e67e22; text-shadow: 0 0 8px rgba(241, 196, 15, 0.7); } 
+    100% { transform: scale(1); color: #c0392b; } 
+}
+
+/* ========================================================
+   NÚT BẤM & Ô NHẬP LIỆU (BUTTONS & INPUTS)
+   ======================================================== */
+
 .btn { 
-    display: block; width: 100%; padding: 14px; margin: 12px 0;
-    color: white; border: none; border-radius: 10px; cursor: pointer; 
-    font-size: 16px; font-weight: bold; text-transform: uppercase;
-    transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    display: block; 
+    width: 100%; 
+    padding: 14px; 
+    margin: 14px 0;
+    color: white; 
+    border: none; 
+    border-radius: 12px; 
+    cursor: pointer; 
+    font-size: 16px; 
+    font-weight: 800; 
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.25s ease-in-out; 
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
 }
-.btn:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.3); }
-.btn-host { background: linear-gradient(45deg, #c0392b, #e74c3c); }
-.btn-student { background: linear-gradient(45deg, #27ae60, #2ecc71); }
-.btn-google { background: linear-gradient(45deg, #4285F4, #34A853); font-size: 15px; } /* Nút Google đặc trưng */
-.btn-start-game { background: linear-gradient(45deg, #f39c12, #f1c40f); color: #8e44ad; font-size: 18px; padding: 18px;}
-.btn-success { background: #27ae60; }
 
+.btn:hover { 
+    transform: translateY(-3px); 
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); 
+    filter: brightness(1.08);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+/* Nút Giáo viên (Đèn lồng đỏ) */
+.btn-host { 
+    background: linear-gradient(135deg, #b71c1c 0%, #c0392b 50%, #e74c3c 100%);
+    box-shadow: 0 5px 15px rgba(192, 57, 43, 0.4);
+    border: 1px solid #ff7961;
+}
+
+/* Nút Học sinh (Trăng rằm - Hổ phách) */
+.btn-student { 
+    background: linear-gradient(135deg, #d35400 0%, #e67e22 50%, #f39c12 100%);
+    box-shadow: 0 5px 15px rgba(230, 126, 34, 0.4);
+    border: 1px solid #ffd166;
+}
+
+/* Nút Bắt đầu chơi (Ánh trăng vàng hoàng kim - Rực rỡ) */
+.btn-start-game { 
+    background: linear-gradient(135deg, #f1c40f 0%, #f39c12 50%, #e67e22 100%); 
+    color: #5c1800 !important; 
+    font-size: 18px; 
+    padding: 18px;
+    border: 2px solid #ffd700;
+    box-shadow: 
+        0 6px 20px rgba(243, 156, 18, 0.5),
+        0 0 15px rgba(255, 215, 0, 0.4);
+    animation: buttonGlow 2s infinite alternate ease-in-out;
+}
+
+@keyframes buttonGlow {
+    0% { box-shadow: 0 6px 20px rgba(243, 156, 18, 0.5); }
+    100% { box-shadow: 0 8px 25px rgba(243, 156, 18, 0.8), 0 0 20px rgba(255, 215, 0, 0.6); }
+}
+
+.btn-success { 
+    background: linear-gradient(135deg, #1b5e20 0%, #27ae60 50%, #2ecc71 100%);
+    box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+    border: 1px solid #a3e4d7;
+}
+
+.btn-google { 
+    background: linear-gradient(45deg, #4285F4, #34A853); 
+    font-size: 15px; 
+}
+
+/* Ô nhập liệu */
 input { 
-    width: 100%; padding: 14px; font-size: 16px; margin: 10px 0; 
-    border-radius: 10px; border: 2px solid #bdc3c7; box-sizing: border-box;
-    text-align: center; font-weight: bold;
+    width: 100%; 
+    padding: 14px; 
+    font-size: 16px; 
+    margin: 10px 0; 
+    border-radius: 12px; 
+    border: 2px solid #e0c58e; 
+    box-sizing: border-box;
+    text-align: center; 
+    font-weight: bold;
+    background: #fffdf9;
+    color: #2c3e50;
+    transition: all 0.3s ease;
 }
-input:focus { outline: none; border-color: #c0392b; }
 
-/* Phòng chờ & Luật chơi */
-.waiting-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; }
-.waiting-tag { background: #ecf0f1; padding: 8px 15px; border-radius: 20px; font-weight: bold; color: #c0392b; border: 2px solid #bdc3c7; }
-.rules-box { text-align: left; background: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #c0392b; margin-bottom: 20px;}
-.rules-box ul { padding-left: 20px; line-height: 1.8; margin: 0;}
-.loader { border: 6px solid #f3f3f3; border-top: 6px solid #c0392b; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+input:focus { 
+    outline: none; 
+    border-color: #f39c12; 
+    box-shadow: 0 0 12px rgba(243, 156, 18, 0.4);
+    background: #ffffff;
+}
 
-/* Hộp thoại Popup Custom (Sửa z-index lên 99999 để luôn hiển thị trên cùng) */
+/* ========================================================
+   PHÒNG CHỜ & LUẬT CHƠI (WAITING ROOM & RULES)
+   ======================================================== */
+
+.waiting-list { 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 10px; 
+    justify-content: center; 
+    margin: 20px 0; 
+}
+
+.waiting-tag { 
+    background: #fffdf5; 
+    padding: 8px 16px; 
+    border-radius: 20px; 
+    font-weight: 800; 
+    color: #c0392b; 
+    border: 2px solid #f39c12; 
+    box-shadow: 0 3px 8px rgba(243, 156, 18, 0.2);
+}
+
+.rules-box { 
+    text-align: left; 
+    background: #fffbf0; 
+    padding: 18px; 
+    border-radius: 14px; 
+    border-left: 6px solid #e67e22; 
+    border-top: 1px solid #fae5b9;
+    border-right: 1px solid #fae5b9;
+    border-bottom: 1px solid #fae5b9;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(230, 126, 34, 0.1);
+}
+
+.rules-box ul { 
+    padding-left: 20px; 
+    line-height: 1.85; 
+    margin: 0;
+}
+
+/* Vòng tròn tải (Loader) */
+.loader { 
+    border: 6px solid rgba(241, 196, 15, 0.2); 
+    border-top: 6px solid #e67e22; 
+    border-radius: 50%; 
+    width: 52px; 
+    height: 52px; 
+    animation: spin 1s linear infinite; 
+    margin: 0 auto; 
+    filter: drop-shadow(0 0 8px rgba(241, 196, 15, 0.6));
+}
+
+@keyframes spin { 
+    0% { transform: rotate(0deg); } 
+    100% { transform: rotate(360deg); } 
+}
+
+/* ========================================================
+   HỘP THOẠI POPUP (CUSTOM POPUP)
+   ======================================================== */
+
 .popup-overlay {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 99999;
-    backdrop-filter: blur(3px);
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100vw; 
+    height: 100vh;
+    background: rgba(5, 10, 25, 0.75); 
+    display: none; 
+    align-items: center; 
+    justify-content: center; 
+    z-index: 99999;
+    backdrop-filter: blur(5px);
 }
+
 .popup-box {
-    background: #fff; padding: 25px; border-radius: 15px; text-align: center;
-    max-width: 85%; min-width: 300px; box-shadow: 0 15px 30px rgba(0,0,0,0.4);
-    border-top: 6px solid #c0392b; animation: popIn 0.3s ease;
+    background: #fffdf8; 
+    padding: 28px 25px; 
+    border-radius: 18px; 
+    text-align: center;
+    max-width: 85%; 
+    min-width: 310px; 
+    box-shadow: 
+        0 20px 45px rgba(0, 0, 0, 0.6),
+        0 0 30px rgba(241, 196, 15, 0.4);
+    border: 2px solid #f1c40f;
+    border-top: 7px solid #c0392b; 
+    animation: popIn 0.3s ease;
 }
-.popup-box h3 { margin-top: 0; color: #c0392b; font-size: 22px; }
-.popup-box p { font-size: 16px; font-weight: bold; line-height: 1.5; color: #34495e; white-space: pre-wrap;}
 
-/* Bố cục Game */
-.game-layout { display: flex; flex-direction: row; gap: 15px; width: 100%; max-width: 1000px; align-items: flex-start; }
-.game-board-area { flex: 2; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 3px solid #27ae60;}
-.live-leaderboard-area { flex: 1; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 600px; overflow-y: auto; border: 3px solid #c0392b;}
-.live-title { background: #c0392b; color: white; margin: -15px -15px 15px -15px; padding: 15px; border-radius: 10px 10px 0 0; }
-.stat-box { display: inline-block; background: #ecf0f1; padding: 5px 10px; border-radius: 15px; margin: 0 2px; font-size: 14px;}
-.stat-danger { color: #c0392b; font-weight: bold; }
-.stat-warning { color: #f39c12; font-weight: bold; }
+.popup-box h3 { 
+    margin-top: 0; 
+    color: #c0392b; 
+    font-size: 22px; 
+    font-weight: 900;
+}
 
-/* Bảng xếp hạng Live */
-.leaderboard-container { text-align: left; }
-.lb-item { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 10px; margin-bottom: 8px; border-radius: 8px; border-left: 5px solid #bdc3c7; position: relative; }
-.lb-item.is-me { border-left-color: #f1c40f; background: #fffdf0; transform: scale(1.02); }
-.lb-info { display: flex; flex-direction: column; }
-.lb-name { font-weight: bold; font-size: 14px; }
-.lb-detail { font-size: 11px; color: #7f8c8d; }
-.lb-score { font-weight: 900; font-size: 18px; color: #c0392b; }
+.popup-box p { 
+    font-size: 16px; 
+    font-weight: bold; 
+    line-height: 1.55; 
+    color: #34495e; 
+    white-space: pre-wrap;
+}
 
-/* Bàn cờ */
+/* ========================================================
+   BỐ CỤC MÀN HÌNH CHƠI GAME (GAME LAYOUT)
+   ======================================================== */
+
+.game-layout { 
+    display: flex; 
+    flex-direction: row; 
+    gap: 20px; 
+    width: 100%; 
+    max-width: 1040px; 
+    align-items: flex-start; 
+    position: relative;
+    z-index: 10;
+}
+
+.game-board-area { 
+    flex: 2; 
+    background: rgba(255, 255, 255, 0.96); 
+    backdrop-filter: blur(8px);
+    padding: 18px; 
+    border-radius: 20px; 
+    box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.4),
+        0 0 25px rgba(230, 126, 34, 0.25); 
+    border: 2.5px solid #e67e22;
+}
+
+.live-leaderboard-area { 
+    flex: 1; 
+    background: rgba(255, 255, 255, 0.96); 
+    backdrop-filter: blur(8px);
+    padding: 18px; 
+    border-radius: 20px; 
+    box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.4),
+        0 0 25px rgba(192, 57, 43, 0.25); 
+    max-height: 600px; 
+    overflow-y: auto; 
+    border: 2.5px solid #c0392b;
+}
+
+.live-title { 
+    background: linear-gradient(135deg, #b71c1c 0%, #c0392b 50%, #d35400 100%); 
+    color: white; 
+    margin: -18px -18px 15px -18px; 
+    padding: 16px; 
+    border-radius: 17px 17px 0 0; 
+    font-weight: 900;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    letter-spacing: 0.5px;
+}
+
+.game-stats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.stat-box { 
+    display: inline-block; 
+    background: #fffdf5; 
+    padding: 6px 12px; 
+    border-radius: 16px; 
+    font-size: 14px;
+    font-weight: 800;
+    border: 1.5px solid #f39c12;
+    box-shadow: 0 2px 6px rgba(243, 156, 18, 0.15);
+}
+
+.stat-highlight { 
+    color: #d35400; 
+    font-weight: 900; 
+}
+
+.stat-danger { 
+    color: #c0392b; 
+    font-weight: 900; 
+}
+
+.stat-warning { 
+    color: #d35400; 
+    font-weight: 900; 
+}
+
+/* ========================================================
+   BẢNG XẾP HẠNG TRỰC TIẾP (LIVE LEADERBOARD)
+   ======================================================== */
+
+.leaderboard-container { 
+    text-align: left; 
+}
+
+.lb-item { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    background: #fffdf9; 
+    padding: 11px 12px; 
+    margin-bottom: 8px; 
+    border-radius: 10px; 
+    border-left: 5px solid #e0c58e; 
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    position: relative; 
+    transition: all 0.2s;
+}
+
+.lb-item.is-me { 
+    border-left-color: #f1c40f !important; 
+    background: #fffbe6 !important; 
+    transform: scale(1.02); 
+    box-shadow: 0 4px 12px rgba(241, 196, 15, 0.35);
+    border: 1px solid #f1c40f;
+    border-left-width: 6px;
+}
+
+.lb-info { 
+    display: flex; 
+    flex-direction: column; 
+}
+
+.lb-name { 
+    font-weight: bold; 
+    font-size: 14px; 
+    color: #2c3e50;
+}
+
+.lb-detail { 
+    font-size: 11px; 
+    color: #7f8c8d; 
+    margin-top: 2px;
+}
+
+.lb-score { 
+    font-weight: 900; 
+    font-size: 18px; 
+    color: #c0392b; 
+    text-shadow: 0 1px 3px rgba(192, 57, 43, 0.15);
+}
+
+.btn-spectate {
+    display: inline-block;
+    width: auto !important;
+    padding: 6px 12px !important;
+    margin: 0 0 0 10px !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    border-radius: 8px !important;
+    background: linear-gradient(135deg, #f39c12, #f1c40f) !important;
+    color: #5c1800 !important;
+    border: 1px solid #ffd700 !important;
+    box-shadow: 0 2px 6px rgba(243, 156, 18, 0.3) !important;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: all 0.2s;
+}
+
+.btn-spectate:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 10px rgba(243, 156, 18, 0.5) !important;
+}
+
+/* ========================================================
+   BÀN CỜ MÊ CUNG LÔGIC (GAME BOARD)
+   ======================================================== */
+
 #game-container {
-    display: grid; grid-template-columns: 35px repeat(8, minmax(35px, 50px)); grid-template-rows: 35px repeat(8, minmax(35px, 50px));
-    gap: 3px; justify-content: center; margin: 15px auto 0 auto;
+    display: grid; 
+    grid-template-columns: 38px repeat(8, minmax(36px, 52px)); 
+    grid-template-rows: 38px repeat(8, minmax(36px, 52px));
+    gap: 4px; 
+    justify-content: center; 
+    margin: 15px auto 0 auto;
 }
-.cell { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border-radius: 6px; transition: all 0.2s; user-select: none; }
-.header-cell { background-color: #c0392b; color: white; font-size: 14px; }
-.empty-cell { background-color: transparent; }
-.game-cell { background-color: #ffffff; border: 2px solid #bdc3c7; cursor: pointer; }
-.game-cell.clickable:hover { background-color: #e8f8f5; transform: scale(1.05); border-color: #27ae60; z-index: 5;}
-.current { background-color: #f1c40f !important; color: #2c3e50; border-color: #f39c12; box-shadow: 0 0 15px #f1c40f; transform: scale(1.05); z-index: 2; }
-.visited { background-color: #2ecc71 !important; color: white; border-color: #27ae60; }
-.bomb { background-color: #c0392b !important; color: white; animation: shake 0.4s; border-color: #a93226;}
-.treasure { background-color: #fff; font-size: 22px; border: none;}
+
+#spec-game-container {
+    display: grid;
+    grid-template-columns: 32px repeat(8, minmax(28px, 44px));
+    grid-template-rows: 32px repeat(8, minmax(28px, 44px));
+    gap: 3px;
+    justify-content: center;
+    margin: 10px auto;
+}
+
+.spec-cell {
+    cursor: default !important;
+}
+
+.cell { 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 13px; 
+    font-weight: 800; 
+    border-radius: 8px; 
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); 
+    user-select: none; 
+}
+
+/* Ô tiêu đề hàng & cột */
+.header-cell { 
+    background: linear-gradient(135deg, #8b1818 0%, #c0392b 100%); 
+    color: #fff; 
+    font-size: 15px; 
+    border: 1.5px solid #f1c40f;
+    box-shadow: 0 2px 6px rgba(192, 57, 43, 0.3);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+.empty-cell { 
+    background-color: transparent; 
+}
+
+/* Ô bàn cờ */
+.game-cell { 
+    background-color: #fffdf7; 
+    border: 2px solid #e0d7c3; 
+    cursor: pointer; 
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.game-cell.clickable:hover { 
+    background-color: #fff9e6; 
+    transform: scale(1.06); 
+    border-color: #f39c12; 
+    box-shadow: 0 0 12px rgba(243, 156, 18, 0.5);
+    z-index: 5;
+}
+
+/* Ô hiện tại (Ánh trăng hội tụ lung linh) */
+.current { 
+    background: radial-gradient(circle at center, #ffffff 0%, #fff6cc 40%, #f1c40f 75%, #e67e22 100%) !important; 
+    color: #611800 !important; 
+    border-color: #ffd700 !important; 
+    box-shadow: 
+        0 0 22px 6px rgba(241, 196, 15, 0.9), 
+        inset 0 0 10px rgba(255, 255, 255, 0.9) !important; 
+    transform: scale(1.08) !important; 
+    z-index: 6; 
+    font-weight: 900;
+    animation: currentMoonPulse 1.4s infinite alternate ease-in-out;
+}
+
+@keyframes currentMoonPulse {
+    0% { 
+        box-shadow: 0 0 15px 4px rgba(241, 196, 15, 0.7), inset 0 0 6px #fff; 
+        transform: scale(1.05); 
+    }
+    100% { 
+        box-shadow: 0 0 28px 8px rgba(255, 215, 0, 1), inset 0 0 12px #fff; 
+        transform: scale(1.1); 
+    }
+}
+
+/* Ô đã đi qua (Ngọc bích ánh vàng) */
+.visited { 
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%) !important; 
+    color: white !important; 
+    border-color: #f1c40f !important; 
+    box-shadow: 0 2px 8px rgba(39, 174, 96, 0.4);
+}
+
+/* Ô đạp trúng bom */
+.bomb { 
+    background: linear-gradient(135deg, #962d22, #c0392b) !important; 
+    color: white !important; 
+    animation: shake 0.4s; 
+    border-color: #f1c40f !important;
+    box-shadow: 0 0 16px rgba(231, 76, 60, 0.8) !important;
+}
+
+/* Ô đích kho báu */
+.treasure { 
+    background: radial-gradient(circle, #fff9db 0%, #ffeaa7 60%, #ffd166 100%) !important; 
+    font-size: 24px !important; 
+    border: 2px solid #f1c40f !important;
+    box-shadow: 
+        0 0 18px rgba(241, 196, 15, 0.85),
+        inset 0 0 10px rgba(255, 215, 0, 0.5) !important;
+    animation: treasureGlow 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes treasureGlow {
+    0% { transform: scale(1); filter: brightness(1); }
+    100% { transform: scale(1.08); filter: brightness(1.2); }
+}
 
 @keyframes shake {
     0% { transform: translateX(0); }
-    25% { transform: translateX(-5px) rotate(-5deg); }
-    50% { transform: translateX(5px) rotate(5deg); }
-    75% { transform: translateX(-5px) rotate(-5deg); }
+    25% { transform: translateX(-6px) rotate(-6deg); }
+    50% { transform: translateX(6px) rotate(6deg); }
+    75% { transform: translateX(-6px) rotate(-6deg); }
     100% { transform: translateX(0); }
 }
 
+/* ========================================================
+   RESPONSIVE DESIGN CHO THIẾT BỊ DI ĐỘNG
+   ======================================================== */
+
 @media (max-width: 768px) {
-    body { padding: 10px; }
-    .game-layout { flex-direction: column; gap: 10px; }
-    .game-board-area, .live-leaderboard-area { padding: 10px; }
-    .live-leaderboard-area { max-height: 250px; }
-    #game-container { grid-template-columns: 28px repeat(8, minmax(30px, 1fr)); grid-template-rows: 28px repeat(8, minmax(30px, 1fr)); gap: 2px; }
-    .cell { font-size: 10px; border-radius: 4px;}
-    .treasure { font-size: 18px; }
-    .stat-box { padding: 4px 8px; font-size: 12px; }
+    body { 
+        padding: 8px; 
+    }
+    
+    .moon {
+        width: 70px;
+        height: 70px;
+        top: 15px;
+        right: 15px;
+    }
+    .crater-1 { width: 14px; height: 14px; top: 15px; left: 32px; }
+    .crater-2 { width: 9px; height: 9px; top: 38px; left: 18px; }
+    .crater-3 { width: 11px; height: 11px; top: 40px; left: 42px; }
+
+    .lantern-left {
+        left: 8px;
+    }
+    .lantern-right {
+        right: 85px;
+    }
+    .lantern-wire {
+        height: 25px;
+    }
+    .lantern-body {
+        width: 34px;
+        height: 40px;
+    }
+    .lantern-large .lantern-body {
+        width: 38px;
+        height: 46px;
+    }
+    .lantern-star .star-lantern-body {
+        font-size: 26px;
+        width: 32px;
+        height: 32px;
+    }
+    .lantern-tassel {
+        height: 22px;
+    }
+
+    .container {
+        padding: 20px 16px;
+        border-radius: 18px;
+    }
+
+    .game-layout { 
+        flex-direction: column; 
+        gap: 12px; 
+    }
+    
+    .game-board-area, .live-leaderboard-area { 
+        padding: 12px; 
+        border-radius: 16px;
+    }
+    
+    .live-leaderboard-area { 
+        max-height: 250px; 
+    }
+    
+    #game-container { 
+        grid-template-columns: 30px repeat(8, minmax(30px, 1fr)); 
+        grid-template-rows: 30px repeat(8, minmax(30px, 1fr)); 
+        gap: 2.5px; 
+    }
+    
+    #spec-game-container { 
+        grid-template-columns: 24px repeat(8, minmax(24px, 1fr)); 
+        grid-template-rows: 24px repeat(8, minmax(24px, 1fr)); 
+        gap: 2px; 
+    }
+    
+    .cell { 
+        font-size: 11px; 
+        border-radius: 5px;
+    }
+    
+    .header-cell {
+        font-size: 12px;
+    }
+    
+    .treasure { 
+        font-size: 19px !important; 
+    }
+    
+    .stat-box { 
+        padding: 5px 8px; 
+        font-size: 12px; 
+    }
+
+    .btn {
+        padding: 12px;
+        font-size: 15px;
+    }
 }

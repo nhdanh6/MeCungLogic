@@ -12,10 +12,56 @@
 </head>
 <body>
 
+    <!-- TRANG TRÍ BẦU TRỜI & ĐÈN LỒNG TRUNG THU -->
+    <div class="sky-decorations" aria-hidden="true">
+        <div class="moon">
+            <div class="moon-halo"></div>
+            <div class="moon-crater crater-1"></div>
+            <div class="moon-crater crater-2"></div>
+            <div class="moon-crater crater-3"></div>
+        </div>
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+        <div class="stars-layer"></div>
+        <div class="lantern-group lantern-left">
+            <div class="lantern">
+                <div class="lantern-wire"></div>
+                <div class="lantern-cap-top"></div>
+                <div class="lantern-body">
+                    <div class="lantern-line"></div>
+                </div>
+                <div class="lantern-cap-bottom"></div>
+                <div class="lantern-tassel"></div>
+            </div>
+            <div class="lantern lantern-star">
+                <div class="lantern-wire"></div>
+                <div class="star-lantern-body">★</div>
+                <div class="lantern-tassel"></div>
+            </div>
+        </div>
+        <div class="lantern-group lantern-right">
+            <div class="lantern lantern-star">
+                <div class="lantern-wire"></div>
+                <div class="star-lantern-body">★</div>
+                <div class="lantern-tassel"></div>
+            </div>
+            <div class="lantern lantern-large">
+                <div class="lantern-wire"></div>
+                <div class="lantern-cap-top"></div>
+                <div class="lantern-body">
+                    <div class="lantern-line"></div>
+                </div>
+                <div class="lantern-cap-bottom"></div>
+                <div class="lantern-tassel"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- MÀN HÌNH 1: CHỌN VAI TRÒ -->
     <div class="container animate-pop" id="role-selection">
-        <h2 class="title-main">🎄 MÊ CUNG LÔGIC 🎅</h2>
-        <p class="subtitle">TÌM ĐƯỜNG ĐẾN KHO BÁU</p>
+        <h2 class="title-main">🏮 MÊ CUNG LÔGIC 🌕</h2>
+        <p class="subtitle">TÌM ĐƯỜNG ĐẾN CUNG TRĂNG</p>
         <button class="btn btn-host" onclick="initHost()">👨‍🏫 Giáo viên (Tạo phòng)</button>
         <button class="btn btn-student" onclick="showStudentLogin()">🧑‍🎓 Học sinh (Tham gia)</button>
     </div>
@@ -37,19 +83,21 @@
             <h3>Sĩ số: <span id="player-count" style="color: #c0392b;">0</span> 
                 (Sẵn sàng: <span id="ready-count" style="color: #27ae60;">0</span>)</h3>
             <div id="waiting-list" class="waiting-list"></div>
-            <button class="btn btn-start-game" onclick="startHostGame()">🛷 BẮT ĐẦU TRÒ CHƠI</button>
-            <!-- Nút Hủy Phòng mới -->
+            <button class="btn btn-start-game" onclick="startHostGame()">🏮 BẮT ĐẦU TRÒ CHƠI</button>
+            <!-- Nút Hủy Phòng -->
             <button class="btn" style="background: #c0392b; margin-top: 10px;" onclick="cancelRoom()">❌ HỦY PHÒNG</button>
         </div>
 
         <div id="host-playing-area" style="display: none;">
             <h2 class="title-main">🏆 TRẠNG THÁI LỚP HỌC</h2>
             <div id="host-leaderboard" class="leaderboard-container"></div>
+            <!-- Nút Hủy Phòng khi đang trong trận -->
+            <button class="btn" style="background: #c0392b; margin-top: 15px;" onclick="cancelRoom()">❌ HỦY PHÒNG</button>
         </div>
     </div>
     <!-- MÀN HÌNH 3: HỌC SINH - ĐĂNG NHẬP NHANH -->
     <div class="container animate-pop" id="student-view" style="display: none;">
-        <h2 class="title-main">🎅 GHI DANH LỚP HỌC</h2>
+        <h2 class="title-main">🏮 GHI DANH LỚP HỌC</h2>
         <input type="text" id="pin-input" placeholder="Nhập Mã Phòng (4 số)">
         <input type="text" id="name-input" placeholder="Nhập Họ Tên của bạn">
         <button class="btn btn-student" onclick="verifyRoom()">TIẾP TỤC ➡️</button>
@@ -58,17 +106,18 @@
 
     <!-- MÀN HÌNH 4: HỌC SINH - LUẬT CHƠI & SẴN SÀNG -->
     <div class="container animate-pop" id="rules-view" style="display: none;">
-        <h2 class="title-warning">📜 LUẬT CHƠI ĐÊM NOEL</h2>
+        <h2 class="title-warning">📜 LUẬT CHƠI </h2>
         <div class="rules-box">
             <ul>
-                <li>🎁 <b>Nhiệm vụ:</b> Tìm đường đến Hộp Quà Giáng Sinh. Tổng cộng 5 màn.</li>
+                <li>🥮 <b>Nhiệm vụ:</b> Tìm đường đến Phần thưởng. Tổng cộng 5 màn.</li>
                 <li>⏱️ <b>Thời gian:</b> Tối đa 3 phút/màn. Hết giờ tự động qua màn.</li>
-                <li>👣 <b>Cách đi:</b> Đi từng bước liền kề (Lên, Xuống, Trái, Phải).</li>
+                <li>👣 <b>Cách đi:</b> Đi từng bước liền kề (Lên, Xuống, Trái, Phải). Được phép đi lại ô đã đi qua!</li>
                 <li>🧮 <b>Tính toán:</b> Cột <b>[Phép toán]</b> Hàng. Bằng <b>1</b> (+100đ). Bằng <b>0</b> (Đạp bom: -200đ, mất 1 mạng).</li>
                 <li>💔 <b>Hết mạng:</b> Bị trừ 1000đ, chuyển ngay sang màn tiếp theo.</li>
+                <li>🏆 <b>Xếp hạng:</b> Tính theo điểm số và thời gian hoàn thành.</li>
             </ul>
         </div>
-        <button class="btn btn-success" onclick="joinWaitingRoom()">ĐÃ HIỂU & SẴN SÀNG ⛄</button>
+        <button class="btn btn-success" onclick="joinWaitingRoom()">ĐÃ HIỂU & SẴN SÀNG 🏮</button>
     </div>
 
     <!-- MÀN HÌNH 5: HỌC SINH - PHÒNG CHỜ -->
@@ -79,7 +128,7 @@
         <hr style="border: 1px dashed #bdc3c7; margin: 20px 0;">
         <p style="font-weight: bold; color: #2980b9;">Danh sách lớp đang tham gia:</p>
         <div id="student-waiting-list" class="waiting-list"></div>
-        <!-- Nút Thoát Phòng mới -->
+        <!-- Nút Thoát Phòng -->
         <button class="btn" style="background: #95a5a6; margin-top: 15px;" onclick="leaveWaitingRoom()">🚪 THOÁT PHÒNG</button>
     </div>
 
@@ -94,6 +143,8 @@
                 <span class="stat-box" style="border: 2px solid #e74c3c;">⏱️ <span id="ui-timer" style="color: #c0392b; font-weight: bold;">03:00</span></span>
             </div>
             <div id="game-container"></div>
+            <!-- Nút Thoát Phòng khi đang chơi -->
+            <button class="btn" style="background: #95a5a6; margin-top: 15px; padding: 10px; font-size: 14px;" onclick="leaveGamePlaying()">🚪 THOÁT PHÒNG</button>
         </div>
 
         <div class="live-leaderboard-area">
@@ -109,6 +160,20 @@
         <p>Tổng điểm của bạn:</p>
         <b id="my-final-score" class="final-score">0</b>
         <button class="btn btn-student" style="margin-top: 20px;" onclick="location.reload()">VỀ TRANG CHỦ</button>
+    </div>
+
+    <!-- HỘP THOẠI XEM TRỰC TIẾP DÀNH CHO GIÁO VIÊN -->
+    <div id="spectate-modal" class="popup-overlay">
+        <div class="popup-box" style="max-width: 520px; width: 95%;">
+            <h3 id="spectate-student-name" style="margin-bottom: 5px;">Đang xem học sinh</h3>
+            <div class="game-stats" style="margin-bottom: 10px;">
+                <span class="stat-box">🚩 Màn: <span id="spec-level" class="stat-highlight">1</span>/5</span>
+                <span class="stat-box">❤️ Mạng: <span id="spec-lives" class="stat-danger">3</span></span>
+                <span class="stat-box">⭐ Điểm: <span id="spec-score" class="stat-warning">0</span></span>
+            </div>
+            <div id="spec-game-container"></div>
+            <button class="btn btn-student" style="width: 150px; margin: 15px auto 0 auto;" onclick="closeSpectate()">ĐÓNG</button>
+        </div>
     </div>
 
     <!-- HỘP THOẠI POPUP -->
