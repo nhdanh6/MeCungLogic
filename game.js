@@ -9,6 +9,7 @@ const firebaseConfig = {
 };
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const db = firebase.database();
+console.log("=== Mê Cung Logic v2.1: Đã kích hoạt tính năng dịch chuyển tức thời ô đã đi qua ===");
 
 let myRoomPIN = "", myName = "";
 let level = 1, lives = 3, score = 0;
