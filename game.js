@@ -676,6 +676,8 @@ function renderBoard() {
 
 function isClickable(r, c) {
     if (!currentPos) return r === 0 && c === 0; 
+    if (r === currentPos.r && c === currentPos.c) return false;
+    if (visitedCells.has(`${r}-${c}`)) return true; // Cho phép click vào bất kỳ ô nào đã đi qua
     let dr = Math.abs(r - currentPos.r); let dc = Math.abs(c - currentPos.c);
     return (dr === 1 && dc === 0) || (dr === 0 && dc === 1);
 }
@@ -692,7 +694,20 @@ function handleMove(r, c) {
     let cellEl = document.getElementById(`cell-${r}-${c}`);
     let cellKey = `${r}-${c}`;
     
-    if (cellEl.classList.contains("bomb")) return; 
+    if (cellEl && cellEl.classList.contains("bomb")) return; 
+
+    // Nếu ô đã đi qua: Dịch chuyển tức thời tới ô đó mà không cần đi từng bước
+    if (visitedCells.has(cellKey)) {
+        if (currentPos) {
+            let prevEl = document.getElementById(`cell-${currentPos.r}-${currentPos.c}`);
+            if (prevEl) prevEl.classList.replace("current", "visited");
+        }
+        currentPos = { r, c };
+        syncDataToFirebase();
+        saveMapLocal();
+        renderBoard();
+        return;
+    } 
 
     if (r === 7 && c === 7) {
         clearInterval(timerInterval);
